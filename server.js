@@ -35,7 +35,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please slow down.' }
 });
 
-// Serve uploaded files
+// Serve uploaded files (thumbnails served via API to prevent hotlinking/download forcing)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve frontend static files
@@ -49,6 +49,7 @@ app.use('/api/users', apiLimiter, require('./routes/users'));
 app.use('/api/comments', apiLimiter, require('./routes/comments'));
 app.use('/api/likes', apiLimiter, require('./routes/likes'));
 app.use('/api/messages', apiLimiter, require('./routes/messages'));
+app.use('/api/playlists', apiLimiter, require('./routes/playlists'));
 
 // Rate limiter for HTML page routes
 const pageLimiter = rateLimit({
@@ -75,11 +76,22 @@ app.get('/upload', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'upload.html'));
 });
 
+// /watch?id=123 (legacy numeric id)
 app.get('/watch', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'watch.html'));
 });
 
+// /watch/:vid_id (short ID format e.g. /watch/Vu9XzCyB)
+app.get('/watch/:vid_id', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'watch.html'));
+});
+
 app.get('/profile', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'profile.html'));
+});
+
+// /@username — friendly user profile URL
+app.get('/@:username', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'profile.html'));
 });
 
@@ -89,6 +101,11 @@ app.get('/messages', pageLimiter, (req, res) => {
 
 app.get('/search', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'search.html'));
+});
+
+// /playlist/:pid — playlist page
+app.get('/playlist/:pid', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'playlist.html'));
 });
 
 // 404 fallback

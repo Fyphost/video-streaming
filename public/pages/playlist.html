@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playlist — StreamHub</title>
+  <meta name="description" content="Watch a curated playlist of videos on StreamHub.">
+  <meta property="og:title" content="Playlist — StreamHub">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="playlist">
+
+  <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <div id="playlist-content">
+        <div class="loading-spinner"><div class="spinner"></div><p>Loading playlist…</p></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      buildNavbar('playlist');
+      buildSidebar('playlist');
+      loadPlaylist();
+    });
+
+    async function loadPlaylist() {
+      const container = document.getElementById('playlist-content');
+      // Extract pid from /playlist/:pid
+      const pid = window.location.pathname.split('/').pop();
+      if (!pid) { window.location.href = '/'; return; }
+
+      try {
+        const data = await apiRequest(`/api/playlists/${pid}`);
+        const { playlist, videos } = data;
+        const user = getUser();
+        const isOwner = user && user.id === playlist.user_id;
+
+        document.title = `${playlist.title} — StreamHub`;
+
+        container.innerHTML = `
+          <div class="playlist-header">
+            <div class="playlist-cover">
+              <i class="fa-solid fa-list-ul"></i>
+            </div>
+            <div class="playlist-meta">
+              <h1>${escapeHtml(playlist.title)}</h1>
+              ${playlist.description ? `<p style="color:var(--text-secondary);margin:4px 0">${escapeHtml(playlist.description)}</p>` : ''}
+              <p style="font-size:0.85rem;color:var(--text-secondary)">
+                By <a href="/@${encodeURIComponent(playlist.username)}">${escapeHtml(playlist.username)}</a>
+                &nbsp;•&nbsp; ${videos.length} video${videos.length !== 1 ? 's' : ''}
+                &nbsp;•&nbsp; ${playlist.is_public ? 'Public' : 'Private'}
+              </p>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                ${isOwner ? `<button class="btn btn-danger btn-sm" onclick="deletePlaylist('${escapeHtml(pid)}')"><i class="fa-solid fa-trash"></i> Delete Playlist</button>` : ''}
+                <button class="btn btn-outline btn-sm" onclick="sharePlaylist()"><i class="fa-solid fa-share-nodes"></i> Share</button>
+              </div>
+            </div>
+          </div>
+          <div class="playlist-videos" id="playlist-videos"></div>
+        `;
+
+        const listEl = document.getElementById('playlist-videos');
+        if (!videos.length) {
+          listEl.innerHTML = '<div class="empty-state"><div class="icon"><i class="fa-solid fa-film"></i></div><h3>No videos in this playlist yet</h3></div>';
+          return;
+        }
+
+        videos.forEach((v, idx) => {
+          const watchUrl = v.vid_id ? `/watch/${v.vid_id}` : `/watch?id=${v.id}`;
+          const thumb = v.thumbnail
+            ? `<img src="/uploads/${v.thumbnail}" style="width:120px;height:67px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+            : `<div style="width:120px;height:67px;background:linear-gradient(135deg,#e8f0fe,#c5d8fd);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.5rem"><i class="fa-solid fa-play"></i></div>`;
+
+          const item = document.createElement('div');
+          item.className = 'playlist-video-item';
+          item.innerHTML = `
+            <span class="playlist-index">${idx + 1}</span>
+            <a href="${watchUrl}" style="display:flex;gap:12px;flex:1;text-decoration:none;color:inherit">
+              ${thumb}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:0.95rem;line-height:1.3">${escapeHtml(v.title)}</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px">${escapeHtml(v.username)} &bull; ${formatViews(v.views)} views</div>
+              </div>
+            </a>
+            ${isOwner ? `<button class="btn btn-danger btn-sm" onclick="removeFromPlaylist('${escapeHtml(pid)}', ${v.id})" title="Remove"><i class="fa-solid fa-xmark"></i></button>` : ''}
+          `;
+          listEl.appendChild(item);
+        });
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-circle-xmark"></i></div><h3>Playlist not found</h3><p>${escapeHtml(err.message)}</p><a href="/" class="btn btn-primary" style="margin-top:12px">Go Home</a></div>`;
+      }
+    }
+
+    async function deletePlaylist(pid) {
+      if (!confirm('Delete this playlist?')) return;
+      try {
+        await apiRequest(`/api/playlists/${pid}`, { method: 'DELETE' });
+        showToast('Playlist deleted.', 'success');
+        setTimeout(() => window.location.href = '/', 800);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function removeFromPlaylist(pid, videoId) {
+      try {
+        await apiRequest(`/api/playlists/${pid}/videos/${videoId}`, { method: 'DELETE' });
+        showToast('Video removed.', 'success');
+        loadPlaylist();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function sharePlaylist() {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => showToast('Playlist link copied!', 'success')).catch(() => {});
+    }
+  </script>
+</body>
+</html>

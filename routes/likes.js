@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/init');
+const { db } = require('../database/init');
 const { authenticateToken } = require('../middleware/auth');
 
 // POST /api/likes/:videoId - toggle like on a video

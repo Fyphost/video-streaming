@@ -6,14 +6,23 @@ document.addEventListener('DOMContentLoaded', () => {
   buildNavbar('profile');
   buildSidebar('profile');
 
+  // Support both ?user=username and /@username path
   const params = new URLSearchParams(window.location.search);
-  const username = params.get('user');
+  let username = params.get('user');
+
+  if (!username) {
+    // Check /@username path
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts.length === 2 && pathParts[1].startsWith('@')) {
+      username = decodeURIComponent(pathParts[1].slice(1));
+    }
+  }
 
   if (!username) {
     // If no user specified, redirect to current user's profile
     const user = getUser();
     if (user) {
-      window.location.href = `/profile?user=${encodeURIComponent(user.username)}`;
+      window.location.href = `/@${encodeURIComponent(user.username)}`;
     } else {
       window.location.href = '/login';
     }
@@ -31,16 +40,23 @@ async function loadProfile(username) {
   try {
     const data = await apiRequest(`/api/users/${username}`);
 
+    // Canonicalize URL to /@username
+    if (window.location.search) {
+      window.history.replaceState({}, '', `/@${encodeURIComponent(data.username)}`);
+    }
+
     // Render header
     const isMe = currentUser && currentUser.id === data.id;
     const avatarHtml = data.avatar
       ? `<img src="/uploads/${data.avatar}" class="profile-avatar-large" alt="${escapeHtml(data.username)}">`
       : `<div class="profile-avatar-large">${avatarInitials(data.username)}</div>`;
 
+    const bluetick = data.bluetick === 2 ? ' <i class="fa-solid fa-circle-check bluetick-icon" title="Verified"></i>' : '';
+
     headerEl.innerHTML = `
       ${avatarHtml}
       <div class="profile-info">
-        <h1>${escapeHtml(data.username)}</h1>
+        <h1>${escapeHtml(data.username)}${bluetick}</h1>
         <p class="profile-bio">${escapeHtml(data.bio || 'No bio yet.')}</p>
         <div class="profile-stats">
           <div class="stat">
@@ -56,10 +72,11 @@ async function loadProfile(username) {
             <span class="label">Following</span>
           </div>
         </div>
-        <div style="margin-top:16px;display:flex;gap:8px">
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
           ${isMe ? `
             <button class="btn btn-outline" onclick="showEditProfile()"><i class="fa-solid fa-pen"></i> Edit Profile</button>
             <a href="/upload" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload Video</a>
+            ${data.bluetick !== 2 ? `<button class="btn btn-outline" onclick="applyBluetick()" title="Apply for Verified Badge"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Get Verified</button>` : ''}
           ` : currentUser ? `
             <button class="btn ${data.is_following ? 'btn-primary' : 'btn-outline'}" id="follow-btn" onclick="toggleFollowProfile(${data.id})">
               ${data.is_following ? 'Following' : 'Follow'}
@@ -287,5 +304,20 @@ async function saveProfile() {
     showToast(err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
+  }
+}
+
+async function applyBluetick() {
+  const reason = prompt('Why do you deserve a verified badge? (optional)');
+  if (reason === null) return; // User cancelled
+
+  try {
+    await apiRequest('/api/users/me/bluetick', {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' })
+    });
+    showToast('Verification request submitted! Our team will review it shortly.', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }

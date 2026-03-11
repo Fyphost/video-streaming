@@ -23,11 +23,16 @@
     <main class="main-content" style="padding:24px">
       <div class="messages-layout">
         <!-- Conversations list -->
-        <div class="conversations-panel">
+        <div class="conversations-panel" id="conversations-panel">
           <div class="conversations-header">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <span>Messages</span>
               <button class="btn btn-primary btn-sm" onclick="startNewConversation()" title="New Message"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <!-- Search conversations -->
+            <div class="conv-search-wrap" style="margin-top:10px">
+              <input type="text" id="conv-search" class="form-control" placeholder="Search users…" autocomplete="off" oninput="searchConversations(this.value)">
+              <div class="search-suggestions" id="conv-suggestions"></div>
             </div>
           </div>
           <div class="conversations-list" id="conversations-list">

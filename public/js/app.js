@@ -174,7 +174,9 @@ function createAvatarEl(user, size = 36) {
 function buildVideoCard(video) {
   const card = document.createElement('div');
   card.className = 'video-card';
-  card.onclick = () => { window.location.href = `/watch?id=${video.id}`; };
+  // Prefer short vid_id URL, fall back to ?id=
+  const watchUrl = video.vid_id ? `/watch/${video.vid_id}` : `/watch?id=${video.id}`;
+  card.onclick = () => { window.location.href = watchUrl; };
 
   const thumbnailHtml = video.thumbnail
     ? `<img src="/uploads/${video.thumbnail}" alt="${escapeHtml(video.title)}" loading="lazy">`
@@ -184,16 +186,21 @@ function buildVideoCard(video) {
     ? `<img src="/uploads/${video.avatar}" alt="${escapeHtml(video.username)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`
     : `<span class="avatar-placeholder">${avatarInitials(video.username)}</span>`;
 
+  const profileUrl = video.username ? `/@${encodeURIComponent(video.username)}` : '#';
+  const bluetick = video.bluetick === 2 ? ' <i class="fa-solid fa-circle-check bluetick-icon" title="Verified"></i>' : '';
+  const categoryTag = video.category ? `<span class="category-tag">${escapeHtml(video.category)}</span>` : '';
+
   card.innerHTML = `
     <div class="video-thumbnail">
       ${thumbnailHtml}
+      ${categoryTag}
     </div>
     <div class="video-info">
       <div class="video-title">${escapeHtml(video.title)}</div>
       <div class="video-meta">
-        <a class="uploader" href="/profile?user=${encodeURIComponent(video.username)}" onclick="event.stopPropagation()">
+        <a class="uploader" href="${profileUrl}" onclick="event.stopPropagation()">
           ${uploaderAvatar}
-          ${escapeHtml(video.username)}
+          ${escapeHtml(video.username)}${bluetick}
         </a>
         <span>•</span>
         <span>${formatViews(video.views)} views</span>
@@ -229,10 +236,13 @@ function buildNavbar(activePage) {
       <div class="logo-icon"><i class="fa-solid fa-play"></i></div>
       <span class="brand-name">StreamHub</span>
     </a>
-    <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)" role="search">
-      <input type="search" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos">
-      <button type="submit" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
-    </form>
+    <div class="navbar-search-wrapper">
+      <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)" role="search">
+        <input type="search" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos" autocomplete="off">
+        <button type="submit" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+      </form>
+      <div class="search-suggestions" id="navbar-suggestions"></div>
+    </div>
     <div class="navbar-actions">
       <button class="search-toggle-btn" id="search-toggle-btn" aria-label="Open search" aria-expanded="false">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -244,7 +254,7 @@ function buildNavbar(activePage) {
             ${user.avatar ? `<img src="/uploads/${user.avatar}" alt="${escapeHtml(user.username)}">` : escapeHtml(avatarInitials(user.username))}
           </div>
           <div class="user-dropdown" id="user-dropdown">
-            <a href="/profile?user=${encodeURIComponent(user.username)}"><i class="fa-solid fa-user"></i> My Profile</a>
+            <a href="/@${encodeURIComponent(user.username)}"><i class="fa-solid fa-user"></i> My Profile</a>
             <a href="/messages"><i class="fa-solid fa-envelope"></i> Messages</a>
             <hr>
             <button onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
@@ -278,6 +288,40 @@ function buildNavbar(activePage) {
       if (searchToggleBtn) searchToggleBtn.setAttribute('aria-expanded', 'false');
     }
   });
+
+  // AJAX search suggestions
+  const searchInput = document.getElementById('search-input');
+  const suggestionsEl = document.getElementById('navbar-suggestions');
+  let suggestTimer = null;
+  if (searchInput && suggestionsEl) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(suggestTimer);
+      const val = searchInput.value.trim();
+      if (!val) { suggestionsEl.innerHTML = ''; suggestionsEl.style.display = 'none'; return; }
+      suggestTimer = setTimeout(async () => {
+        try {
+          const data = await fetch(`/api/videos/suggestions?q=${encodeURIComponent(val)}`).then(r => r.json());
+          if (!data.suggestions || !data.suggestions.length) {
+            suggestionsEl.style.display = 'none';
+            return;
+          }
+          suggestionsEl.innerHTML = '';
+          data.suggestions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.textContent = s;
+            div.addEventListener('mousedown', (e) => { e.preventDefault(); applySuggestion(s); });
+            suggestionsEl.appendChild(div);
+          });
+          suggestionsEl.style.display = 'block';
+        } catch {}
+      }, 200);
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => { suggestionsEl.style.display = 'none'; }, 200);
+    });
+  }
 
   // Build mobile bottom navigation
   buildBottomNav(activePage);
@@ -314,7 +358,7 @@ function buildBottomNav(activePage) {
         <i class="fa-solid fa-comments"></i>
         <span>Messages</span>
       </a>
-      <a href="/profile?user=${encodeURIComponent(user.username)}" class="bottom-nav-item ${activePage === 'profile' ? 'active' : ''}" aria-label="Profile">
+      <a href="/@${encodeURIComponent(user.username)}" class="bottom-nav-item ${activePage === 'profile' ? 'active' : ''}" aria-label="Profile">
         <i class="fa-solid fa-circle-user"></i>
         <span>Profile</span>
       </a>
@@ -353,6 +397,14 @@ function handleSearch(e) {
   if (q) window.location.href = `/search?q=${encodeURIComponent(q)}`;
 }
 
+function applySuggestion(val) {
+  const input = document.getElementById('search-input');
+  if (input) {
+    input.value = val;
+    window.location.href = `/search?q=${encodeURIComponent(val)}`;
+  }
+}
+
 // ── Sidebar builder ────────────────────────────────────────────
 function buildSidebar(activePage) {
   const sidebarEl = document.getElementById('sidebar');
@@ -368,7 +420,7 @@ function buildSidebar(activePage) {
         <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-tv"></i></span> Subscriptions</a></li>
         <hr class="sidebar-divider">
         <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-envelope"></i></span> Messages</a></li>
-        <li><a href="/profile?user=${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-user"></i></span> Profile</a></li>
+        <li><a href="/@${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-user"></i></span> Profile</a></li>
         <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-upload"></i></span> Upload</a></li>
       ` : `
         <hr class="sidebar-divider">

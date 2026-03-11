@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/init');
+const { db } = require('../database/init');
 const { authenticateToken } = require('../middleware/auth');
 
 // GET /api/comments/:videoId - get comments for a video
@@ -58,16 +58,18 @@ router.post('/:videoId', authenticateToken, (req, res) => {
   }
 });
 
-// DELETE /api/comments/:id - delete a comment
+// DELETE /api/comments/:id - delete a comment (own comment OR video owner)
 router.delete('/:id', authenticateToken, (req, res) => {
   try {
-    const comment = db.get(
-      'SELECT * FROM comments WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.id]
-    );
+    const comment = db.get('SELECT c.*, v.user_id as video_owner_id FROM comments c JOIN videos v ON c.video_id = v.id WHERE c.id = ?', [req.params.id]);
 
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found or not authorized.' });
+      return res.status(404).json({ error: 'Comment not found.' });
+    }
+
+    // Allow deletion if the user is the comment author OR the video owner
+    if (comment.user_id !== req.user.id && comment.video_owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment.' });
     }
 
     db.run('DELETE FROM comments WHERE id = ?', [req.params.id]);
