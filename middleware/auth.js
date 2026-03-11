@@ -3,22 +3,12 @@ const { JWT_SECRET } = require('../config');
 
 
 function authenticateToken(req, res, next) {
-  let token = null;
-
-  // Check Authorization header first
   const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.slice(7);
-  }
-
-  // Fall back to cookie
-  if (!token && req.cookies && req.cookies.token) {
-    token = req.cookies.token;
-  }
-
-  if (!token) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
+
+  const token = authHeader.slice(7);
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -30,21 +20,13 @@ function authenticateToken(req, res, next) {
 }
 
 function optionalAuth(req, res, next) {
-  let token = null;
-
   const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.slice(7);
-  }
-
-  if (!token && req.cookies && req.cookies.token) {
-    token = req.cookies.token;
-  }
-
-  if (!token) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     req.user = null;
     return next();
   }
+
+  const token = authHeader.slice(7);
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);

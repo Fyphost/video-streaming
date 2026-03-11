@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const db = require('../database/init');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config');
 
-
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -23,7 +22,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     }
 
-    // Check if username or email already exists
     const existing = db.get(
       'SELECT id FROM users WHERE username = ? OR email = ?',
       [username, email]
@@ -44,12 +42,6 @@ router.post('/register', async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'strict'
-    });
 
     return res.status(201).json({
       message: 'Account created successfully.',
@@ -87,12 +79,6 @@ router.post('/login', async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'strict'
-    });
-
     return res.json({
       message: 'Logged in successfully.',
       token,
@@ -106,7 +92,7 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('token');
+  // Client-side logout: instruct client to discard the JWT token
   return res.json({ message: 'Logged out successfully.' });
 });
 
