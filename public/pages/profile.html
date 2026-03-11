@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — StreamHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="profile">
+
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <!-- Profile Header -->
+      <div class="profile-header" id="profile-header">
+        <div class="loading-spinner" style="margin:auto">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs" id="profile-tabs" style="display:none">
+        <button class="tab-btn active" onclick="switchTab('videos')">📹 Videos</button>
+        <button class="tab-btn" onclick="switchTab('liked')">❤️ Liked</button>
+      </div>
+
+      <!-- Videos Grid -->
+      <div id="profile-videos"></div>
+      <div id="profile-liked" style="display:none"></div>
+    </main>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="edit-profile-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
+    <div class="card" style="padding:28px;width:100%;max-width:440px;margin:20px">
+      <h3 style="margin-bottom:20px;font-size:1.1rem;font-weight:700">Edit Profile</h3>
+
+      <div class="form-group">
+        <label class="form-label">Profile Picture</label>
+        <input class="form-control" type="file" id="edit-avatar" accept="image/*">
+        <p class="form-hint">JPG, PNG or GIF (max 5MB)</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edit-bio">Bio</label>
+        <textarea class="form-control textarea" id="edit-bio" placeholder="Tell the world about yourself…" maxlength="500" style="min-height:80px"></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeEditProfile()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/profile.js"></script>
+  <script>
+    function switchTab(tab) {
+      const btns = document.querySelectorAll('#profile-tabs .tab-btn');
+      btns.forEach((btn, i) => btn.classList.toggle('active', (i === 0 && tab === 'videos') || (i === 1 && tab === 'liked')));
+
+      document.getElementById('profile-videos').style.display = tab === 'videos' ? 'block' : 'none';
+      const likedEl = document.getElementById('profile-liked');
+      likedEl.style.display = tab === 'liked' ? 'block' : 'none';
+
+      if (tab === 'liked' && !likedEl.dataset.loaded) {
+        likedEl.dataset.loaded = '1';
+        loadLikedVideos(likedEl);
+      }
+    }
+
+    async function loadLikedVideos(container) {
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>';
+      try {
+        const data = await apiRequest('/api/users/me/liked');
+        container.innerHTML = '';
+        if (!data.videos || data.videos.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="icon">❤️</div><h3>No liked videos yet</h3></div>';
+          return;
+        }
+        const grid = document.createElement('div');
+        grid.className = 'video-grid';
+        data.videos.forEach(v => grid.appendChild(buildVideoCard(v)));
+        container.appendChild(grid);
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>${escapeHtml(err.message)}</h3></div>`;
+      }
+    }
+  </script>
+</body>
+</html>

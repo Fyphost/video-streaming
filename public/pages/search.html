@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search — StreamHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="search">
+
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <div class="search-hero">
+        <h1>🔍 Search Videos</h1>
+        <p>Discover amazing content from creators worldwide</p>
+      </div>
+
+      <div class="search-bar-lg">
+        <input type="text" id="search-input-lg" placeholder="Search videos, creators…">
+        <button onclick="doSearch()">Search</button>
+      </div>
+
+      <div id="search-results">
+        <!-- Results will be rendered here -->
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      buildNavbar('search');
+      buildSidebar('search');
+
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q') || '';
+
+      const input = document.getElementById('search-input-lg');
+      if (input) input.value = q;
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doSearch();
+      });
+
+      if (q) performSearch(q);
+    });
+
+    function doSearch() {
+      const q = document.getElementById('search-input-lg').value.trim();
+      if (q) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('q', q);
+        window.history.pushState({}, '', url);
+        performSearch(q);
+      }
+    }
+
+    async function performSearch(query, page = 1) {
+      const container = document.getElementById('search-results');
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Searching…</p></div>';
+
+      try {
+        const data = await apiRequest(`/api/videos?search=${encodeURIComponent(query)}&page=${page}&limit=12`);
+        container.innerHTML = '';
+
+        if (!data.videos || data.videos.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">🔍</div>
+              <h3>No results found for "${escapeHtml(query)}"</h3>
+              <p>Try different keywords or check the spelling.</p>
+            </div>`;
+          return;
+        }
+
+        const resultsInfo = document.createElement('p');
+        resultsInfo.style.cssText = 'color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px';
+        resultsInfo.textContent = `Found ${data.total} result${data.total !== 1 ? 's' : ''} for "${query}"`;
+        container.appendChild(resultsInfo);
+
+        const grid = document.createElement('div');
+        grid.className = 'video-grid';
+        data.videos.forEach(v => grid.appendChild(buildVideoCard(v)));
+        container.appendChild(grid);
+
+        // Pagination
+        const paginationEl = document.getElementById('pagination');
+        paginationEl.innerHTML = '';
+        if (data.total > 12) {
+          const totalPages = Math.ceil(data.total / 12);
+          const prevBtn = document.createElement('button');
+          prevBtn.textContent = '← Prev';
+          prevBtn.disabled = page <= 1;
+          prevBtn.onclick = () => performSearch(query, page - 1);
+
+          const pageInfo = document.createElement('span');
+          pageInfo.style.cssText = 'padding:8px;font-size:0.9rem;color:var(--text-secondary)';
+          pageInfo.textContent = `Page ${page} of ${totalPages}`;
+
+          const nextBtn = document.createElement('button');
+          nextBtn.textContent = 'Next →';
+          nextBtn.disabled = page >= totalPages;
+          nextBtn.onclick = () => performSearch(query, page + 1);
+
+          paginationEl.append(prevBtn, pageInfo, nextBtn);
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Search failed</h3><p>${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+  </script>
+</body>
+</html>

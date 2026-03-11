@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch — StreamHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="watch">
+
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <div id="watch-content">
+        <div class="watch-layout">
+          <!-- Left: video + details + comments -->
+          <div>
+            <div id="video-player-area">
+              <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading video…</p>
+              </div>
+            </div>
+
+            <!-- Comments section -->
+            <div class="comments-section" id="comments-section" style="display:none">
+              <h3>Comments (<span id="comment-count">0</span>)</h3>
+
+              <div class="comment-input-area">
+                <textarea id="comment-text" placeholder="Add a comment…" rows="1"></textarea>
+                <button class="btn btn-primary" id="comment-submit-btn" onclick="submitCommentFromPage()">Post</button>
+              </div>
+
+              <div id="comments-list">
+                <div class="loading-spinner">
+                  <div class="spinner"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: related videos -->
+          <div id="related-videos" style="padding-top:0">
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/comments.js"></script>
+  <script src="/js/video.js"></script>
+  <script>
+    // Bridge: get videoId from URL params and pass to submitComment
+    function submitCommentFromPage() {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get('id');
+      if (videoId) submitComment(videoId);
+    }
+
+    // Show comments section after video loads
+    const origRender = window.renderVideoPlayer;
+    window.renderVideoPlayer = function(video) {
+      origRender(video);
+      const cs = document.getElementById('comments-section');
+      if (cs) cs.style.display = 'block';
+    };
+  </script>
+</body>
+</html>
