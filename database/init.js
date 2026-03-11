@@ -136,9 +136,20 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL UNIQUE,
       reason TEXT DEFAULT '',
+      instagram_url TEXT DEFAULT '',
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS watch_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      video_id INTEGER NOT NULL,
+      watched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, video_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
     );
   `);
 
@@ -151,9 +162,11 @@ function migrateDatabase() {
   // Add new columns to existing tables (safe – each wrapped in try/catch)
   const migrations = [
     "ALTER TABLE users ADD COLUMN bluetick INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0",
     "ALTER TABLE videos ADD COLUMN vid_id TEXT",
     "ALTER TABLE videos ADD COLUMN category TEXT DEFAULT ''",
-    "ALTER TABLE messages ADD COLUMN reply_to_id INTEGER DEFAULT NULL"
+    "ALTER TABLE messages ADD COLUMN reply_to_id INTEGER DEFAULT NULL",
+    "ALTER TABLE bluetick_requests ADD COLUMN instagram_url TEXT DEFAULT ''"
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch (_) { /* column already exists */ }

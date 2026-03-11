@@ -358,9 +358,52 @@ function renderVideoPlayer(video) {
   const watchUrl = video.vid_id ? `${window.location.origin}/watch/${video.vid_id}` : `${window.location.origin}/watch?id=${video.id}`;
   const categoryTag = video.category ? `<span class="category-tag" style="margin-left:8px">${escapeHtml(video.category)}</span>` : '';
 
+  // Update page meta tags for SEO
+  document.title = `${video.title} — StreamHub`;
+  updateMetaTag('name', 'description', video.description || `Watch ${video.title} on StreamHub`);
+  updateMetaTag('property', 'og:title', video.title);
+  updateMetaTag('property', 'og:description', video.description || `Watch ${video.title} on StreamHub`);
+  updateMetaTag('property', 'og:url', watchUrl);
+  updateMetaTag('property', 'og:type', 'video.other');
+  if (video.thumbnail) {
+    updateMetaTag('property', 'og:image', `${window.location.origin}/api/videos/thumbnail/${video.thumbnail}`);
+    updateMetaTag('name', 'twitter:image', `${window.location.origin}/api/videos/thumbnail/${video.thumbnail}`);
+  }
+  updateMetaTag('name', 'twitter:title', video.title);
+  updateMetaTag('name', 'twitter:description', video.description || `Watch ${video.title} on StreamHub`);
+
+  // Inject JSON-LD VideoObject schema for Google search
+  let schemaEl = document.getElementById('video-schema');
+  if (!schemaEl) {
+    schemaEl = document.createElement('script');
+    schemaEl.id = 'video-schema';
+    schemaEl.type = 'application/ld+json';
+    document.head.appendChild(schemaEl);
+  }
+  schemaEl.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    'name': video.title,
+    'description': video.description || video.title,
+    'thumbnailUrl': video.thumbnail ? `${window.location.origin}/api/videos/thumbnail/${video.thumbnail}` : '',
+    'uploadDate': video.created_at,
+    'contentUrl': `${window.location.origin}/api/videos/stream/${video.filename}`,
+    'url': watchUrl,
+    'interactionStatistic': {
+      '@type': 'InteractionCounter',
+      'interactionType': 'https://schema.org/WatchAction',
+      'userInteractionCount': video.views || 0
+    },
+    'author': {
+      '@type': 'Person',
+      'name': video.username,
+      'url': `${window.location.origin}/@${video.username}`
+    }
+  });
+
   el.innerHTML = `
     <div class="video-player-wrapper">
-      <video controls autoplay id="video-el" playsinline>
+      <video controls autoplay id="video-el" playsinline controlslist="nodownload" oncontextmenu="return false">
         <source src="/api/videos/stream/${encodeURIComponent(video.filename)}" type="${mime}">
         Your browser does not support the video tag.
       </video>
@@ -378,6 +421,7 @@ function renderVideoPlayer(video) {
             <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
           </button>
           <button class="btn btn-outline btn-sm" id="share-video-btn"><i class="fa-solid fa-share-nodes"></i> Share</button>
+          ${user ? `<button class="btn btn-outline btn-sm" onclick="openAddToPlaylist(${video.id})"><i class="fa-solid fa-list-ul"></i> Playlist</button>` : ''}
           ${isOwner ? `
             <button class="btn btn-outline btn-sm" onclick="openChangeThumbnail(${video.id})"><i class="fa-solid fa-image"></i> Thumbnail</button>
             <button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -412,7 +456,24 @@ function renderVideoPlayer(video) {
     });
   }
 
+  // Record watch history for logged-in users
+  if (isLoggedIn()) {
+    apiRequest(`/api/users/me/history/${video.id}`, { method: 'POST' }).catch((err) => {
+      console.error('Watch history recording failed:', err);
+    });
+  }
+
   loadUploaderInfo(video.user_id, video.username);
+}
+
+function updateMetaTag(attr, name, content) {
+  let tag = document.querySelector(`meta[${attr}="${name}"]`);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attr, name);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', content);
 }
 
 async function loadUploaderInfo(userId, username) {
@@ -613,6 +674,100 @@ async function uploadNewThumbnail(videoId) {
     const modal = document.getElementById('thumbnail-modal');
     if (modal) modal.remove();
     setTimeout(() => window.location.reload(), 800);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ─── ADD TO PLAYLIST ──────────────────────────────────────────
+async function openAddToPlaylist(videoId) {
+  if (!isLoggedIn()) {
+    window.location.href = '/login';
+    return;
+  }
+
+  let modal = document.getElementById('playlist-add-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'playlist-add-modal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-list-ul"></i> Add to Playlist</h3>
+        <button class="modal-close" onclick="document.getElementById('playlist-add-modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="playlist-list" style="margin-bottom:16px">
+          <div class="loading-spinner" style="padding:16px"><div class="spinner"></div></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin-bottom:16px">
+        <div>
+          <p style="font-size:0.88rem;font-weight:600;margin-bottom:8px">Create new playlist</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="new-playlist-title" class="form-control" placeholder="Playlist title…" maxlength="100">
+            <button class="btn btn-primary btn-sm" onclick="createAndAdd(${videoId})"><i class="fa-solid fa-plus"></i> Create</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+
+  // Load user's playlists
+  try {
+    const data = await apiRequest('/api/playlists/my');
+    const listEl = document.getElementById('playlist-list');
+    if (!listEl) return;
+
+    if (!data.playlists || !data.playlists.length) {
+      listEl.innerHTML = '<p style="font-size:0.85rem;color:var(--text-secondary)">No playlists yet. Create one below.</p>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    data.playlists.forEach(pl => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-outline btn-sm';
+      btn.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin-bottom:8px;justify-content:flex-start';
+      btn.innerHTML = `<i class="fa-solid fa-list-ul"></i> ${escapeHtml(pl.title)} <span style="margin-left:auto;color:var(--text-light);font-size:0.78rem">${pl.video_count} videos</span>`;
+      btn.onclick = () => addToPlaylist(pl.pid, videoId);
+      listEl.appendChild(btn);
+    });
+  } catch {}
+}
+
+async function addToPlaylist(pid, videoId) {
+  try {
+    await apiRequest(`/api/playlists/${pid}/videos`, {
+      method: 'POST',
+      body: JSON.stringify({ video_id: videoId })
+    });
+    showToast('Added to playlist!', 'success');
+    const modal = document.getElementById('playlist-add-modal');
+    if (modal) modal.remove();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function createAndAdd(videoId) {
+  const titleInput = document.getElementById('new-playlist-title');
+  const title = titleInput ? titleInput.value.trim() : '';
+  if (!title) {
+    showToast('Please enter a playlist title.', 'error');
+    return;
+  }
+
+  try {
+    const data = await apiRequest('/api/playlists', {
+      method: 'POST',
+      body: JSON.stringify({ title, is_public: 1 })
+    });
+    await addToPlaylist(data.playlist.pid, videoId);
   } catch (err) {
     showToast(err.message, 'error');
   }

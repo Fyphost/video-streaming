@@ -179,7 +179,7 @@ function buildVideoCard(video) {
   card.onclick = () => { window.location.href = watchUrl; };
 
   const thumbnailHtml = video.thumbnail
-    ? `<img src="/uploads/${video.thumbnail}" alt="${escapeHtml(video.title)}" loading="lazy">`
+    ? `<img src="/uploads/${video.thumbnail}" alt="${escapeHtml(video.title)}" loading="lazy" oncontextmenu="return false" draggable="false">`
     : `<div class="placeholder"><i class="fa-solid fa-play"></i></div>`;
 
   const uploaderAvatar = video.avatar
@@ -420,8 +420,10 @@ function buildSidebar(activePage) {
         <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-tv"></i></span> Subscriptions</a></li>
         <hr class="sidebar-divider">
         <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-envelope"></i></span> Messages</a></li>
+        <li><a href="/history" class="${activePage === 'history' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-clock-rotate-left"></i></span> History</a></li>
         <li><a href="/@${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-user"></i></span> Profile</a></li>
         <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-upload"></i></span> Upload</a></li>
+        ${user.is_admin ? `<li><a href="/admin/bluetick" class="${activePage === 'admin-bluetick' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-shield-halved"></i></span> Admin</a></li>` : ''}
       ` : `
         <hr class="sidebar-divider">
         <li><a href="/login"><span class="icon"><i class="fa-solid fa-right-to-bracket"></i></span> Sign In</a></li>
