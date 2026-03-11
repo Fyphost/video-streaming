@@ -27,7 +27,11 @@ async function loadComments(videoId) {
 
 function buildCommentEl(comment, videoId) {
   const user = getUser();
-  const isOwner = user && user.id === comment.user_id;
+  const isCommentOwner = user && user.id === comment.user_id;
+  // Video owner check: the watch page exposes current video owner via a global
+  const isVideoOwner = user && typeof window._currentVideoOwnerId !== 'undefined' && user.id === window._currentVideoOwnerId;
+  const canDelete = isCommentOwner || isVideoOwner;
+
   const div = document.createElement('div');
   div.className = 'comment-item';
   div.id = `comment-${comment.id}`;
@@ -42,7 +46,7 @@ function buildCommentEl(comment, videoId) {
       <span class="comment-username">${escapeHtml(comment.username)}</span>
       <span class="comment-time">${formatDate(comment.created_at)}</span>
       <div class="comment-text">${escapeHtml(comment.content)}</div>
-      ${isOwner ? `<button class="comment-delete-btn" onclick="deleteComment(${comment.id}, '${videoId}')">Delete</button>` : ''}
+      ${canDelete ? `<button class="comment-delete-btn" onclick="deleteComment(${comment.id}, '${videoId}')">Delete</button>` : ''}
     </div>
   `;
 

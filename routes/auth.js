@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../database/init');
+const { db } = require('../database/init');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config');
 
 // POST /api/auth/register

@@ -139,6 +139,7 @@ function initUploadPage() {
   const uploadForm = document.getElementById('upload-form');
   const progressBar = document.getElementById('progress-fill');
   const progressText = document.getElementById('progress-text');
+  let autoThumbBlob = null; // canvas-captured thumbnail
 
   // Dropzone click to browse
   dropzone.addEventListener('click', () => videoInput.click());
@@ -170,6 +171,9 @@ function initUploadPage() {
     selectedFile.innerHTML = `<strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
     selectedFile.style.display = 'block';
     dropzone.querySelector('.icon').innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+
+    // Auto-generate thumbnail from first frame using HTML5 Canvas
+    captureVideoThumbnail(file);
   }
 
   function createFileList(file) {
@@ -178,11 +182,42 @@ function initUploadPage() {
     return dt.files;
   }
 
+  function captureVideoThumbnail(file) {
+    const objectUrl = URL.createObjectURL(file);
+    const videoEl = document.createElement('video');
+    videoEl.src = objectUrl;
+    videoEl.muted = true;
+    videoEl.currentTime = 1; // capture at 1 second
+
+    videoEl.addEventListener('seeked', () => {
+      const canvas = document.getElementById('thumb-canvas');
+      if (!canvas) return;
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, 1280, 720);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        autoThumbBlob = blob;
+        const preview = document.getElementById('auto-thumb-preview');
+        const row = document.getElementById('auto-thumb-row');
+        if (preview) preview.src = URL.createObjectURL(blob);
+        if (row) row.style.display = 'block';
+      }, 'image/jpeg', 0.85);
+
+      URL.revokeObjectURL(objectUrl);
+    }, { once: true });
+
+    videoEl.load();
+  }
+
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const title = document.getElementById('title').value.trim();
     const description = document.getElementById('description').value.trim();
+    const category = document.getElementById('category') ? document.getElementById('category').value : '';
 
     if (!title) {
       showToast('Please enter a title', 'error');
@@ -198,8 +233,13 @@ function initUploadPage() {
     formData.append('video', videoInput.files[0]);
     formData.append('title', title);
     formData.append('description', description);
-    if (thumbnailInput.files[0]) {
+    if (category) formData.append('category', category);
+
+    // Use custom thumbnail if provided, otherwise use auto-captured frame
+    if (thumbnailInput && thumbnailInput.files[0]) {
       formData.append('thumbnail', thumbnailInput.files[0]);
+    } else if (autoThumbBlob) {
+      formData.append('thumbnail', autoThumbBlob, 'auto-thumbnail.jpg');
     }
 
     const btn = uploadForm.querySelector('button[type="submit"]');
@@ -240,7 +280,9 @@ function initUploadPage() {
 
       const data = await uploadPromise;
       showToast('Video uploaded successfully!', 'success');
-      setTimeout(() => { window.location.href = `/watch?id=${data.video.id}`; }, 1000);
+      // Redirect to short URL if vid_id exists
+      const redirectUrl = data.video.vid_id ? `/watch/${data.video.vid_id}` : `/watch?id=${data.video.id}`;
+      setTimeout(() => { window.location.href = redirectUrl; }, 1000);
     } catch (err) {
       showToast(err.message, 'error');
       btn.disabled = false;
@@ -253,18 +295,35 @@ function initUploadPage() {
 // ─── WATCH PAGE ───────────────────────────────────────────────
 async function initWatchPage() {
   const params = new URLSearchParams(window.location.search);
-  const videoId = params.get('id');
+  // Support both ?id= (numeric) and /watch/:vid_id (path param)
+  let videoId = params.get('id');
+  let vidId = null;
 
-  if (!videoId) {
+  // Check if we loaded via /watch/:vid_id path
+  const pathParts = window.location.pathname.split('/');
+  if (pathParts.length === 3 && pathParts[1] === 'watch' && pathParts[2]) {
+    vidId = pathParts[2];
+  }
+
+  if (!videoId && !vidId) {
     window.location.href = '/';
     return;
   }
 
   try {
-    const video = await apiRequest(`/api/videos/${videoId}`);
+    let video;
+    if (vidId) {
+      video = await apiRequest(`/api/videos/by-vid/${encodeURIComponent(vidId)}`);
+    } else {
+      video = await apiRequest(`/api/videos/${videoId}`);
+    }
+    // Canonicalize URL to /watch/:vid_id
+    if (video.vid_id && window.location.pathname === '/watch') {
+      window.history.replaceState({}, '', `/watch/${video.vid_id}`);
+    }
     renderVideoPlayer(video);
     loadRelatedVideos(video);
-    loadComments(videoId);
+    loadComments(video.id);
   } catch (err) {
     document.getElementById('watch-content').innerHTML = `
       <div class="empty-state">
@@ -290,6 +349,10 @@ function renderVideoPlayer(video) {
     ? `<img src="/uploads/${video.avatar}" alt="${escapeHtml(video.username)}" class="uploader-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover">`
     : `<div class="uploader-avatar" style="background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;width:48px;height:48px;border-radius:50%">${avatarInitials(video.username)}</div>`;
 
+  const bluetick = video.bluetick === 2 ? ' <i class="fa-solid fa-circle-check bluetick-icon" title="Verified"></i>' : '';
+  const watchUrl = video.vid_id ? `${window.location.origin}/watch/${video.vid_id}` : `${window.location.origin}/watch?id=${video.id}`;
+  const categoryTag = video.category ? `<span class="category-tag" style="margin-left:8px">${escapeHtml(video.category)}</span>` : '';
+
   el.innerHTML = `
     <div class="video-player-wrapper">
       <video controls autoplay id="video-el" playsinline>
@@ -298,22 +361,28 @@ function renderVideoPlayer(video) {
       </video>
     </div>
     <div class="video-details">
-      <h1>${escapeHtml(video.title)}</h1>
+      <h1>${escapeHtml(video.title)}${categoryTag}</h1>
       <div class="video-actions-bar">
         <div class="video-stats">
           <span><i class="fa-solid fa-eye"></i> ${formatViews(video.views)} views</span>
           <span>•</span>
           <span>${formatDate(video.created_at)}</span>
         </div>
-        <button class="like-btn ${video.liked_by_me ? 'liked' : ''}" id="like-btn" onclick="toggleLike(${video.id})" aria-label="Like this video" aria-pressed="${video.liked_by_me ? 'true' : 'false'}">
-          <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
-        </button>
-        ${isOwner ? `<button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>` : ''}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="like-btn ${video.liked_by_me ? 'liked' : ''}" id="like-btn" onclick="toggleLike(${video.id})" aria-label="Like this video" aria-pressed="${video.liked_by_me ? 'true' : 'false'}">
+            <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openShareModal('${escapeHtml(watchUrl)}', '${escapeHtml(video.title).replace(/'/g, "\\'")}')"><i class="fa-solid fa-share-nodes"></i> Share</button>
+          ${isOwner ? `
+            <button class="btn btn-outline btn-sm" onclick="openChangeThumbnail(${video.id})"><i class="fa-solid fa-image"></i> Thumbnail</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>
+          ` : ''}
+        </div>
       </div>
       <div class="uploader-info">
         ${uploaderAvatar}
         <div class="uploader-details">
-          <div class="name"><a href="/profile?user=${encodeURIComponent(video.username)}">${escapeHtml(video.username)}</a></div>
+          <div class="name"><a href="/@${encodeURIComponent(video.username)}">${escapeHtml(video.username)}${bluetick}</a></div>
           <div class="follower-count" id="follower-count">Loading…</div>
         </div>
         ${user && user.id !== video.user_id ? `
@@ -417,7 +486,8 @@ async function loadRelatedVideos(currentVideo) {
         item.style.cssText = 'display:flex;gap:10px;padding:8px 0;cursor:pointer;border-radius:8px;transition:background 0.2s';
         item.onmouseover = () => item.style.background = 'var(--bg)';
         item.onmouseout = () => item.style.background = '';
-        item.onclick = () => { window.location.href = `/watch?id=${v.id}`; };
+        const watchUrl = v.vid_id ? `/watch/${v.vid_id}` : `/watch?id=${v.id}`;
+        item.onclick = () => { window.location.href = watchUrl; };
 
         const thumb = v.thumbnail
           ? `<img src="/uploads/${v.thumbnail}" style="width:120px;height:67px;object-fit:cover;border-radius:6px;flex-shrink:0" alt="${escapeHtml(v.title)}">`
@@ -435,4 +505,104 @@ async function loadRelatedVideos(currentVideo) {
         container.appendChild(item);
       });
   } catch {}
+}
+
+// ─── SHARE MODAL ──────────────────────────────────────────────
+function openShareModal(url, title) {
+  let modal = document.getElementById('share-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'share-modal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-share-nodes"></i> Share Video</h3>
+        <button class="modal-close" onclick="document.getElementById('share-modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="share-link-row">
+          <input type="text" id="share-link-input" value="${escapeHtml(url)}" readonly>
+          <button class="btn btn-primary btn-sm" onclick="copyShareLink()"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+        <div class="share-platforms">
+          <a href="https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}" target="_blank" rel="noopener" class="share-btn whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+          <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}" target="_blank" rel="noopener" class="share-btn twitter"><i class="fa-brands fa-x-twitter"></i> X / Twitter</a>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener" class="share-btn facebook"><i class="fa-brands fa-facebook"></i> Facebook</a>
+          <a href="https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}" target="_blank" rel="noopener" class="share-btn telegram"><i class="fa-brands fa-telegram"></i> Telegram</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function copyShareLink() {
+  const input = document.getElementById('share-link-input');
+  if (input) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      showToast('Link copied!', 'success');
+    }).catch(() => {
+      input.select();
+      document.execCommand('copy');
+      showToast('Link copied!', 'success');
+    });
+  }
+}
+
+// ─── CHANGE THUMBNAIL ─────────────────────────────────────────
+function openChangeThumbnail(videoId) {
+  let modal = document.getElementById('thumbnail-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'thumbnail-modal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-image"></i> Change Thumbnail</h3>
+        <button class="modal-close" onclick="document.getElementById('thumbnail-modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:12px">Upload a new thumbnail image (JPG, PNG, WebP — max 5MB)</p>
+        <input type="file" id="new-thumbnail-input" accept="image/*" style="margin-bottom:12px;display:block">
+        <button class="btn btn-primary" onclick="uploadNewThumbnail(${videoId})"><i class="fa-solid fa-upload"></i> Upload Thumbnail</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function uploadNewThumbnail(videoId) {
+  const input = document.getElementById('new-thumbnail-input');
+  if (!input || !input.files[0]) {
+    showToast('Please select an image file.', 'error');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('thumbnail', input.files[0]);
+
+  try {
+    const token = getToken();
+    const res = await fetch(`/api/videos/${videoId}/thumbnail`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    showToast('Thumbnail updated!', 'success');
+    const modal = document.getElementById('thumbnail-modal');
+    if (modal) modal.remove();
+    setTimeout(() => window.location.reload(), 800);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }

@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const db = require('../database/init');
+const { db } = require('../database/init');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -31,7 +31,7 @@ const avatarUpload = multer({
 router.get('/:username', optionalAuth, (req, res) => {
   try {
     const user = db.get(
-      'SELECT id, username, email, avatar, bio, created_at FROM users WHERE username = ?',
+      'SELECT id, username, email, avatar, bio, bluetick, created_at FROM users WHERE username = ?',
       [req.params.username]
     );
     if (!user) {
@@ -81,7 +81,7 @@ router.get('/:username', optionalAuth, (req, res) => {
 router.get('/me/profile', authenticateToken, (req, res) => {
   try {
     const user = db.get(
-      'SELECT id, username, email, avatar, bio, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, avatar, bio, bluetick, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
     if (!user) {
@@ -189,8 +189,8 @@ router.post('/:id/follow', authenticateToken, (req, res) => {
 router.get('/me/liked', authenticateToken, (req, res) => {
   try {
     const videos = db.all(`
-      SELECT v.id, v.title, v.description, v.filename, v.thumbnail, v.views, v.created_at,
-             u.id as user_id, u.username, u.avatar,
+      SELECT v.id, v.vid_id, v.title, v.description, v.filename, v.thumbnail, v.category, v.views, v.created_at,
+             u.id as user_id, u.username, u.avatar, u.bluetick,
              (SELECT COUNT(*) FROM likes WHERE video_id = v.id) as like_count
       FROM likes l
       JOIN videos v ON l.video_id = v.id
@@ -202,6 +202,45 @@ router.get('/me/liked', authenticateToken, (req, res) => {
     return res.json({ videos });
   } catch (err) {
     console.error('Liked videos error:', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// POST /api/users/me/bluetick - apply for bluetick (verified badge)
+router.post('/me/bluetick', authenticateToken, (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    const existing = db.get('SELECT * FROM bluetick_requests WHERE user_id = ?', [req.user.id]);
+    if (existing) {
+      return res.status(409).json({ error: 'You have already applied for verification.', status: existing.status });
+    }
+
+    db.run(
+      'INSERT INTO bluetick_requests (user_id, reason, status) VALUES (?, ?, ?)',
+      [req.user.id, reason || '', 'pending']
+    );
+
+    return res.status(201).json({ message: 'Verification request submitted. Our team will review it shortly.' });
+  } catch (err) {
+    console.error('Bluetick request error:', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// GET /api/users/search - search users by username
+router.get('/search', (req, res) => {
+  try {
+    const { q, limit = 8 } = req.query;
+    if (!q || q.trim().length < 1) return res.json({ users: [] });
+
+    const users = db.all(
+      'SELECT id, username, avatar, bluetick FROM users WHERE username LIKE ? LIMIT ?',
+      [`%${q.trim()}%`, parseInt(limit)]
+    );
+    return res.json({ users });
+  } catch (err) {
+    console.error('User search error:', err);
     return res.status(500).json({ error: 'Server error.' });
   }
 });

@@ -70,12 +70,16 @@
     function submitCommentFromPage() {
       const params = new URLSearchParams(window.location.search);
       const videoId = params.get('id');
-      if (videoId) submitComment(videoId);
+      // Also handle /watch/:vid_id path (numeric id known after video loads)
+      const vid = window._currentVideoId || videoId;
+      if (vid) submitComment(vid);
     }
 
-    // Show comments section after video loads
+    // Show comments section after video loads; also expose video owner id
     const origRender = window.renderVideoPlayer;
     window.renderVideoPlayer = function(video) {
+      window._currentVideoId = video.id;
+      window._currentVideoOwnerId = video.user_id;
       origRender(video);
       const cs = document.getElementById('comments-section');
       if (cs) cs.style.display = 'block';

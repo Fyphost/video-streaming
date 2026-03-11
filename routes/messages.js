@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/init');
+const { db } = require('../database/init');
 const { authenticateToken } = require('../middleware/auth');
 
 // GET /api/messages/conversations - list conversations
@@ -68,10 +68,13 @@ router.get('/:userId', authenticateToken, (req, res) => {
 
     const messages = db.all(`
       SELECT m.id, m.content, m.read, m.created_at,
-             m.sender_id, m.receiver_id,
-             u.username as sender_username, u.avatar as sender_avatar
+             m.sender_id, m.receiver_id, m.reply_to_id,
+             u.username as sender_username, u.avatar as sender_avatar,
+             rm.content as reply_to_content, ru.username as reply_to_username
       FROM messages m
       JOIN users u ON u.id = m.sender_id
+      LEFT JOIN messages rm ON rm.id = m.reply_to_id
+      LEFT JOIN users ru ON ru.id = rm.sender_id
       WHERE (m.sender_id = ? AND m.receiver_id = ?)
          OR (m.sender_id = ? AND m.receiver_id = ?)
       ORDER BY m.created_at ASC
@@ -99,7 +102,7 @@ router.post('/:userId', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'You cannot message yourself.' });
     }
 
-    const { content } = req.body;
+    const { content, reply_to_id } = req.body;
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Message content is required.' });
     }
@@ -113,16 +116,26 @@ router.post('/:userId', authenticateToken, (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    // Validate reply_to_id if provided
+    let replyToId = null;
+    if (reply_to_id) {
+      const replyMsg = db.get('SELECT id FROM messages WHERE id = ?', [reply_to_id]);
+      if (replyMsg) replyToId = reply_to_id;
+    }
+
     const result = db.run(
-      'INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)',
-      [req.user.id, receiverId, content.trim()]
+      'INSERT INTO messages (sender_id, receiver_id, content, reply_to_id) VALUES (?, ?, ?, ?)',
+      [req.user.id, receiverId, content.trim(), replyToId]
     );
 
     const message = db.get(`
-      SELECT m.id, m.content, m.read, m.created_at, m.sender_id, m.receiver_id,
-             u.username as sender_username, u.avatar as sender_avatar
+      SELECT m.id, m.content, m.read, m.created_at, m.sender_id, m.receiver_id, m.reply_to_id,
+             u.username as sender_username, u.avatar as sender_avatar,
+             rm.content as reply_to_content, ru.username as reply_to_username
       FROM messages m
       JOIN users u ON u.id = m.sender_id
+      LEFT JOIN messages rm ON rm.id = m.reply_to_id
+      LEFT JOIN users ru ON ru.id = rm.sender_id
       WHERE m.id = ?
     `, [result.lastInsertRowid]);
 

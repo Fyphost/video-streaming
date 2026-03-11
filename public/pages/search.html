@@ -26,13 +26,29 @@
         <p>Discover amazing content from creators worldwide</p>
       </div>
 
-      <div class="search-bar-lg">
-        <input type="text" id="search-input-lg" placeholder="Search videos, creators…">
-        <button onclick="doSearch()">Search</button>
+      <div class="search-bar-lg-wrap">
+        <div class="search-bar-lg">
+          <input type="text" id="search-input-lg" placeholder="Search videos, creators…" autocomplete="off">
+          <button onclick="doSearch()"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        </div>
+        <div class="search-suggestions" id="page-suggestions"></div>
+      </div>
+
+      <!-- Category filter pills -->
+      <div class="category-pills" id="category-pills">
+        <button class="category-pill active" data-cat="" onclick="filterCategory(this, '')">All</button>
+        <button class="category-pill" data-cat="Entertainment" onclick="filterCategory(this, 'Entertainment')">🎬 Entertainment</button>
+        <button class="category-pill" data-cat="Education" onclick="filterCategory(this, 'Education')">📚 Education</button>
+        <button class="category-pill" data-cat="Music" onclick="filterCategory(this, 'Music')">🎵 Music</button>
+        <button class="category-pill" data-cat="Gaming" onclick="filterCategory(this, 'Gaming')">🎮 Gaming</button>
+        <button class="category-pill" data-cat="Sports" onclick="filterCategory(this, 'Sports')">⚽ Sports</button>
+        <button class="category-pill" data-cat="News" onclick="filterCategory(this, 'News')">📰 News</button>
+        <button class="category-pill" data-cat="Tech" onclick="filterCategory(this, 'Tech')">💻 Tech</button>
+        <button class="category-pill" data-cat="Comedy" onclick="filterCategory(this, 'Comedy')">😂 Comedy</button>
       </div>
 
       <div id="search-results">
-        <!-- Results will be rendered here -->
+        <!-- Results or trending will be rendered here -->
       </div>
 
       <div class="pagination" id="pagination"></div>
@@ -41,54 +57,149 @@
 
   <script src="/js/app.js"></script>
   <script>
+    let currentCategory = '';
+    let currentQuery = '';
+
     document.addEventListener('DOMContentLoaded', () => {
       buildNavbar('search');
       buildSidebar('search');
 
       const params = new URLSearchParams(window.location.search);
       const q = params.get('q') || '';
+      currentQuery = q;
 
       const input = document.getElementById('search-input-lg');
       if (input) input.value = q;
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') doSearch();
-      });
+      if (input) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') doSearch();
+        });
+
+        // AJAX suggestions
+        let suggestTimer = null;
+        input.addEventListener('input', () => {
+          clearTimeout(suggestTimer);
+          const val = input.value.trim();
+          const suggestEl = document.getElementById('page-suggestions');
+          if (!val) { if (suggestEl) { suggestEl.innerHTML = ''; suggestEl.style.display = 'none'; } return; }
+          suggestTimer = setTimeout(async () => {
+            try {
+              const data = await fetch(`/api/videos/suggestions?q=${encodeURIComponent(val)}`).then(r => r.json());
+              if (!data.suggestions || !data.suggestions.length) {
+                suggestEl.style.display = 'none';
+                return;
+              }
+              suggestEl.innerHTML = data.suggestions
+                .map(s => `<div class="suggestion-item" onclick="applySuggestion('${escapeHtml(s).replace(/'/g, "\\'")}')">${escapeHtml(s)}</div>`)
+                .join('');
+              suggestEl.style.display = 'block';
+            } catch {}
+          }, 200);
+        });
+
+        input.addEventListener('blur', () => {
+          setTimeout(() => {
+            const s = document.getElementById('page-suggestions');
+            if (s) s.style.display = 'none';
+          }, 200);
+        });
+      }
 
       if (q) performSearch(q);
+      else loadTrending();
     });
+
+    function applySuggestion(val) {
+      const input = document.getElementById('search-input-lg');
+      if (input) input.value = val;
+      doSearch();
+    }
 
     function doSearch() {
       const q = document.getElementById('search-input-lg').value.trim();
+      currentQuery = q;
       if (q) {
         const url = new URL(window.location.href);
         url.searchParams.set('q', q);
         window.history.pushState({}, '', url);
-        performSearch(q);
+        performSearch(q, 1, currentCategory);
+      } else {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('q');
+        window.history.pushState({}, '', url);
+        loadTrending();
       }
     }
 
-    async function performSearch(query, page = 1) {
+    function filterCategory(btn, cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.category-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (currentQuery) performSearch(currentQuery, 1, cat);
+      else if (cat) performSearch('', 1, cat);
+      else loadTrending();
+    }
+
+    async function loadTrending() {
+      const container = document.getElementById('search-results');
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading trending…</p></div>';
+
+      try {
+        const data = await apiRequest('/api/videos/trending?limit=12');
+        container.innerHTML = '';
+        document.getElementById('pagination').innerHTML = '';
+
+        if (!data.videos || data.videos.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon"><i class="fa-solid fa-fire"></i></div>
+              <h3>No trending videos yet</h3>
+              <p>Be the first to upload a video!</p>
+            </div>`;
+          return;
+        }
+
+        const heading = document.createElement('div');
+        heading.className = 'search-section-heading';
+        heading.innerHTML = '<i class="fa-solid fa-fire" style="color:#f44336"></i> Trending Now';
+        container.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'video-grid';
+        data.videos.forEach(v => grid.appendChild(buildVideoCard(v)));
+        container.appendChild(grid);
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>Failed to load</h3><p>${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    async function performSearch(query, page = 1, category = '') {
       const container = document.getElementById('search-results');
       container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Searching…</p></div>';
 
       try {
-        const data = await apiRequest(`/api/videos?search=${encodeURIComponent(query)}&page=${page}&limit=12`);
+        let url = `/api/videos?page=${page}&limit=12`;
+        if (query) url += `&search=${encodeURIComponent(query)}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+
+        const data = await apiRequest(url);
         container.innerHTML = '';
 
         if (!data.videos || data.videos.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <div class="icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-              <h3>No results found for "${escapeHtml(query)}"</h3>
-              <p>Try different keywords or check the spelling.</p>
+              <h3>No results found${query ? ` for "${escapeHtml(query)}"` : ''}</h3>
+              <p>Try different keywords or select another category.</p>
             </div>`;
+          document.getElementById('pagination').innerHTML = '';
           return;
         }
 
         const resultsInfo = document.createElement('p');
-        resultsInfo.style.cssText = 'color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px';
-        resultsInfo.textContent = `Found ${data.total} result${data.total !== 1 ? 's' : ''} for "${query}"`;
+        resultsInfo.className = 'search-results-info';
+        resultsInfo.textContent = `Found ${data.total} result${data.total !== 1 ? 's' : ''}${query ? ` for "${query}"` : ''}${category ? ` in ${category}` : ''}`;
         container.appendChild(resultsInfo);
 
         const grid = document.createElement('div');
@@ -104,7 +215,7 @@
           const prevBtn = document.createElement('button');
           prevBtn.textContent = '← Prev';
           prevBtn.disabled = page <= 1;
-          prevBtn.onclick = () => performSearch(query, page - 1);
+          prevBtn.onclick = () => performSearch(query, page - 1, category);
 
           const pageInfo = document.createElement('span');
           pageInfo.style.cssText = 'padding:8px;font-size:0.9rem;color:var(--text-secondary)';
@@ -113,7 +224,7 @@
           const nextBtn = document.createElement('button');
           nextBtn.textContent = 'Next →';
           nextBtn.disabled = page >= totalPages;
-          nextBtn.onclick = () => performSearch(query, page + 1);
+          nextBtn.onclick = () => performSearch(query, page + 1, category);
 
           paginationEl.append(prevBtn, pageInfo, nextBtn);
         }
