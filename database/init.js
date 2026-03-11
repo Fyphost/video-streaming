@@ -20,12 +20,20 @@ function generateShortId(length = 8) {
 }
 
 function generateUniqueId(table, column, length) {
+  // Whitelist table/column names to prevent SQL injection
+  const allowedTables = { videos: ['vid_id'], playlists: ['pid'] };
+  if (!allowedTables[table] || !allowedTables[table].includes(column)) {
+    throw new Error(`Invalid table/column for generateUniqueId: ${table}.${column}`);
+  }
+
   let id;
   let attempts = 0;
   do {
     id = generateShortId(length);
     attempts++;
-    if (attempts > 100) break;
+    if (attempts > 100) {
+      throw new Error(`Could not generate a unique ${column} after 100 attempts`);
+    }
   } while (db.get(`SELECT id FROM ${table} WHERE ${column} = ?`, [id]));
   return id;
 }
@@ -151,11 +159,20 @@ function migrateDatabase() {
     try { db.exec(sql); } catch (_) { /* column already exists */ }
   }
 
-  // Backfill vid_id for videos that don't have one yet
+  // Backfill vid_id for videos that don't have one yet (wrapped in transaction for performance)
   const videosWithoutId = db.all("SELECT id FROM videos WHERE vid_id IS NULL OR vid_id = ''");
-  for (const v of videosWithoutId) {
-    const vid_id = generateUniqueId('videos', 'vid_id', 8);
-    db.run('UPDATE videos SET vid_id = ? WHERE id = ?', [vid_id, v.id]);
+  if (videosWithoutId.length > 0) {
+    db.exec('BEGIN');
+    try {
+      for (const v of videosWithoutId) {
+        const vid_id = generateUniqueId('videos', 'vid_id', 8);
+        db.run('UPDATE videos SET vid_id = ? WHERE id = ?', [vid_id, v.id]);
+      }
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
   }
 }
 

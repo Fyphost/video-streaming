@@ -92,12 +92,34 @@ async function searchConversations(query) {
         suggestionsEl.style.display = 'none';
         return;
       }
-      suggestionsEl.innerHTML = data.users
-        .map(u => `<div class="suggestion-item" onclick="openConversation(${u.id},'${escapeHtml(u.username).replace(/'/g,"\\'")}','${escapeHtml(u.avatar || '')}')">
-          ${u.avatar ? `<img src="/uploads/${u.avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;margin-right:8px">` : `<span style="width:24px;height:24px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;margin-right:8px">${avatarInitials(u.username)}</span>`}
-          ${escapeHtml(u.username)}
-        </div>`)
-        .join('');
+      suggestionsEl.innerHTML = '';
+      data.users.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+
+        const avatarEl = u.avatar
+          ? Object.assign(document.createElement('img'), { src: `/uploads/${u.avatar}`, alt: u.username, style: 'width:24px;height:24px;border-radius:50%;object-fit:cover;margin-right:8px' })
+          : (() => {
+              const s = document.createElement('span');
+              s.style.cssText = 'width:24px;height:24px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;margin-right:8px';
+              s.textContent = avatarInitials(u.username);
+              return s;
+            })();
+
+        const nameEl = document.createElement('span');
+        nameEl.textContent = u.username;
+
+        div.appendChild(avatarEl);
+        div.appendChild(nameEl);
+        div.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          openConversation(u.id, u.username, u.avatar || '');
+          suggestionsEl.style.display = 'none';
+          const searchInput = document.getElementById('conv-search');
+          if (searchInput) searchInput.value = '';
+        });
+        suggestionsEl.appendChild(div);
+      });
       suggestionsEl.style.display = 'block';
     } catch {}
   }, 200);
@@ -198,11 +220,19 @@ function renderMessages(container, messages, userId) {
         ${replyHtml}
         ${escapeHtml(msg.content)}
         <div class="chat-message-actions">
-          <button class="msg-reply-btn" onclick="setReplyTo(${msg.id}, '${escapeHtml(msg.content).replace(/'/g, "\\'").substring(0,60)}', '${escapeHtml(msg.sender_username || '').replace(/'/g, "\\'")}')" title="Reply"><i class="fa-solid fa-reply"></i></button>
+          <button class="msg-reply-btn" title="Reply"><i class="fa-solid fa-reply"></i></button>
         </div>
       </div>
       <div class="chat-message-time">${formatDate(msg.created_at)}</div>
     `;
+
+    const replyBtn = div.querySelector('.msg-reply-btn');
+    if (replyBtn) {
+      replyBtn.addEventListener('click', () => {
+        setReplyTo(msg.id, msg.content.substring(0, 60), msg.sender_username || 'User');
+      });
+    }
+
     container.appendChild(div);
   });
 

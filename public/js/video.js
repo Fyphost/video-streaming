@@ -187,7 +187,12 @@ function initUploadPage() {
     const videoEl = document.createElement('video');
     videoEl.src = objectUrl;
     videoEl.muted = true;
-    videoEl.currentTime = 1; // capture at 1 second
+    videoEl.preload = 'metadata';
+
+    videoEl.addEventListener('loadedmetadata', () => {
+      // Seek to 10% of duration (or 1s, whichever is smaller) — safe for short clips
+      videoEl.currentTime = Math.min(1, videoEl.duration * 0.1) || 0;
+    }, { once: true });
 
     videoEl.addEventListener('seeked', () => {
       const canvas = document.getElementById('thumb-canvas');
@@ -372,7 +377,7 @@ function renderVideoPlayer(video) {
           <button class="like-btn ${video.liked_by_me ? 'liked' : ''}" id="like-btn" onclick="toggleLike(${video.id})" aria-label="Like this video" aria-pressed="${video.liked_by_me ? 'true' : 'false'}">
             <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openShareModal('${escapeHtml(watchUrl)}', '${escapeHtml(video.title).replace(/'/g, "\\'")}')"><i class="fa-solid fa-share-nodes"></i> Share</button>
+          <button class="btn btn-outline btn-sm" id="share-video-btn"><i class="fa-solid fa-share-nodes"></i> Share</button>
           ${isOwner ? `
             <button class="btn btn-outline btn-sm" onclick="openChangeThumbnail(${video.id})"><i class="fa-solid fa-image"></i> Thumbnail</button>
             <button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -392,6 +397,12 @@ function renderVideoPlayer(video) {
       ${video.description ? `<div style="color:var(--text-secondary);font-size:0.9rem;margin-top:8px;line-height:1.6">${escapeHtml(video.description)}</div>` : ''}
     </div>
   `;
+
+  // Attach share button event listener (avoids inline onclick XSS risks)
+  const shareBtn = document.getElementById('share-video-btn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => openShareModal(watchUrl, video.title));
+  }
 
   // Initialise Plyr video player if available
   if (typeof Plyr !== 'undefined') {

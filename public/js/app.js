@@ -305,9 +305,14 @@ function buildNavbar(activePage) {
             suggestionsEl.style.display = 'none';
             return;
           }
-          suggestionsEl.innerHTML = data.suggestions
-            .map(s => `<div class="suggestion-item" onclick="applySuggestion('${escapeHtml(s).replace(/'/g, "\\'")}')">${escapeHtml(s)}</div>`)
-            .join('');
+          suggestionsEl.innerHTML = '';
+          data.suggestions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.textContent = s;
+            div.addEventListener('mousedown', (e) => { e.preventDefault(); applySuggestion(s); });
+            suggestionsEl.appendChild(div);
+          });
           suggestionsEl.style.display = 'block';
         } catch {}
       }, 200);

@@ -96,8 +96,11 @@ router.post('/:pid/videos', authenticateToken, (req, res) => {
         [playlist.id, video_id, position]
       );
       return res.status(201).json({ message: 'Video added to playlist.' });
-    } catch {
-      return res.status(409).json({ error: 'Video already in playlist.' });
+    } catch (insertErr) {
+      if (insertErr.message && insertErr.message.includes('UNIQUE constraint failed')) {
+        return res.status(409).json({ error: 'Video already in playlist.' });
+      }
+      throw insertErr;
     }
   } catch (err) {
     console.error('Add video to playlist error:', err);
