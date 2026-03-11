@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages — StreamHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="messages">
+
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content" style="padding:24px">
+      <div class="messages-layout">
+        <!-- Conversations list -->
+        <div class="conversations-panel">
+          <div class="conversations-header">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span>Messages</span>
+              <button class="btn btn-primary btn-sm" onclick="startNewConversation()" title="New Message">+</button>
+            </div>
+          </div>
+          <div class="conversations-list" id="conversations-list">
+            <div class="loading-spinner" style="padding:24px">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat area -->
+        <div class="chat-panel" id="chat-panel">
+          <div class="chat-empty">
+            <div class="icon">💬</div>
+            <p>Select a conversation or start a new one</p>
+            <button class="btn btn-primary btn-sm" onclick="startNewConversation()" style="margin-top:8px">+ New Message</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/messages.js"></script>
+</body>
+</html>

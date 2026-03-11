@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamHub — Video Streaming Platform</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="home">
+
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+      <div class="tabs" id="tabs">
+        <button class="tab-btn active" data-tab="all">🏠 All Videos</button>
+        <button class="tab-btn" data-tab="feed">📺 Subscriptions</button>
+      </div>
+
+      <div class="video-grid" id="video-grid">
+        <div class="loading-spinner" style="grid-column:1/-1">
+          <div class="spinner"></div>
+          <p>Loading videos…</p>
+        </div>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/video.js"></script>
+</body>
+</html>

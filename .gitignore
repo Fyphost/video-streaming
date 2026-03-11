@@ -1,0 +1,15 @@
+node_modules/
+.env
+uploads/*.mp4
+uploads/*.webm
+uploads/*.ogg
+uploads/*.mov
+uploads/*.avi
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.gif
+uploads/*.webp
+database/streaming.db
+*.log
+npm-debug.log*
