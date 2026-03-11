@@ -4,11 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Upload Video — StreamHub</title>
+  <meta name="description" content="Upload your videos to StreamHub and share them with the world.">
+  <meta property="og:title" content="Upload Video — StreamHub">
+  <meta property="og:description" content="Upload your videos to StreamHub and share them with the world.">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="noindex, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-page="upload">
 
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar"></aside>
@@ -18,8 +25,8 @@
         <h1 class="section-title">Upload Video</h1>
 
         <div class="upload-dropzone" id="dropzone">
-          <div class="icon">📹</div>
-          <p><strong>Click or drag & drop</strong> to select a video</p>
+          <div class="icon"><i class="fa-solid fa-video"></i></div>
+          <p><strong>Click or drag &amp; drop</strong> to select a video</p>
           <p style="margin-top:6px;font-size:0.82rem">Supported: MP4, WebM, OGG, MOV, AVI (max 500MB)</p>
           <input type="file" id="video-input" accept="video/*" style="display:none">
         </div>
@@ -54,7 +61,7 @@
               <p class="form-hint">Recommended: 16:9 ratio, JPG or PNG</p>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px">⬆️ Upload Video</button>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px"><i class="fa-solid fa-upload"></i> Upload Video</button>
           </form>
         </div>
       </div>

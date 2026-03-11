@@ -4,11 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Watch — StreamHub</title>
+  <meta name="description" content="Watch this video on StreamHub, the free video streaming platform.">
+  <meta property="og:title" content="Watch — StreamHub">
+  <meta property="og:description" content="Watch this video on StreamHub, the free video streaming platform.">
+  <meta property="og:type" content="video.other">
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-page="watch">
 
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar"></aside>
@@ -55,6 +63,7 @@
 
   <script src="/js/app.js"></script>
   <script src="/js/comments.js"></script>
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script src="/js/video.js"></script>
   <script>
     // Bridge: get videoId from URL params and pass to submitComment

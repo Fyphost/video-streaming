@@ -55,7 +55,7 @@ async function loadAllVideos(container, page = 1, append = false) {
       if (page === 1) {
         container.innerHTML = `
           <div class="empty-state" style="grid-column:1/-1">
-            <div class="icon">📭</div>
+            <div class="icon"><i class="fa-solid fa-inbox"></i></div>
             <h3>No videos yet</h3>
             <p>Be the first to upload a video!</p>
             ${isLoggedIn() ? '<a href="/upload" class="btn btn-primary" style="margin-top:12px">Upload Video</a>' : ''}
@@ -92,13 +92,13 @@ async function loadAllVideos(container, page = 1, append = false) {
       if (page === totalPages) nextBtn.disabled = true;
     }
   } catch (err) {
-    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><h3>Failed to load videos</h3><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>Failed to load videos</h3><p>${escapeHtml(err.message)}</p></div>`;
   }
 }
 
 async function loadFeed(container) {
   if (!isLoggedIn()) {
-    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔒</div><h3>Sign in to see your feed</h3><a href="/login" class="btn btn-primary" style="margin-top:12px">Sign In</a></div>`;
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon"><i class="fa-solid fa-lock"></i></div><h3>Sign in to see your feed</h3><a href="/login" class="btn btn-primary" style="margin-top:12px">Sign In</a></div>`;
     return;
   }
 
@@ -111,7 +111,7 @@ async function loadFeed(container) {
     if (!data.videos || data.videos.length === 0) {
       container.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1">
-          <div class="icon">📺</div>
+          <div class="icon"><i class="fa-solid fa-tv"></i></div>
           <h3>Your feed is empty</h3>
           <p>Follow some creators to see their videos here!</p>
           <a href="/" class="btn btn-primary" style="margin-top:12px">Explore Videos</a>
@@ -121,7 +121,7 @@ async function loadFeed(container) {
 
     data.videos.forEach(v => container.appendChild(buildVideoCard(v)));
   } catch (err) {
-    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><h3>Failed to load feed</h3><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>Failed to load feed</h3><p>${escapeHtml(err.message)}</p></div>`;
   }
 }
 
@@ -169,7 +169,7 @@ function initUploadPage() {
     videoInput.files = createFileList(file);
     selectedFile.innerHTML = `<strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
     selectedFile.style.display = 'block';
-    dropzone.querySelector('.icon').textContent = '✅';
+    dropzone.querySelector('.icon').innerHTML = '<i class="fa-solid fa-circle-check"></i>';
   }
 
   function createFileList(file) {
@@ -268,7 +268,7 @@ async function initWatchPage() {
   } catch (err) {
     document.getElementById('watch-content').innerHTML = `
       <div class="empty-state">
-        <div class="icon">❌</div>
+        <div class="icon"><i class="fa-solid fa-circle-xmark"></i></div>
         <h3>Video not found</h3>
         <p>${escapeHtml(err.message)}</p>
         <a href="/" class="btn btn-primary" style="margin-top:12px">Go Home</a>
@@ -292,7 +292,7 @@ function renderVideoPlayer(video) {
 
   el.innerHTML = `
     <div class="video-player-wrapper">
-      <video controls autoplay id="video-el">
+      <video controls autoplay id="video-el" playsinline>
         <source src="/api/videos/stream/${encodeURIComponent(video.filename)}" type="${mime}">
         Your browser does not support the video tag.
       </video>
@@ -301,14 +301,14 @@ function renderVideoPlayer(video) {
       <h1>${escapeHtml(video.title)}</h1>
       <div class="video-actions-bar">
         <div class="video-stats">
-          <span>👁 ${formatViews(video.views)} views</span>
+          <span><i class="fa-solid fa-eye"></i> ${formatViews(video.views)} views</span>
           <span>•</span>
           <span>${formatDate(video.created_at)}</span>
         </div>
-        <button class="like-btn ${video.liked_by_me ? 'liked' : ''}" id="like-btn" onclick="toggleLike(${video.id})">
-          ❤️ <span id="like-count">${video.like_count || 0}</span>
+        <button class="like-btn ${video.liked_by_me ? 'liked' : ''}" id="like-btn" onclick="toggleLike(${video.id})" aria-label="Like this video" aria-pressed="${video.liked_by_me ? 'true' : 'false'}">
+          <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
         </button>
-        ${isOwner ? `<button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})">🗑 Delete</button>` : ''}
+        ${isOwner ? `<button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>` : ''}
       </div>
       <div class="uploader-info">
         ${uploaderAvatar}
@@ -323,6 +323,14 @@ function renderVideoPlayer(video) {
       ${video.description ? `<div style="color:var(--text-secondary);font-size:0.9rem;margin-top:8px;line-height:1.6">${escapeHtml(video.description)}</div>` : ''}
     </div>
   `;
+
+  // Initialise Plyr video player if available
+  if (typeof Plyr !== 'undefined') {
+    new Plyr('#video-el', {
+      controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'fullscreen'],
+      keyboard: { focused: true, global: false }
+    });
+  }
 
   loadUploaderInfo(video.user_id, video.username);
 }
@@ -354,6 +362,7 @@ async function toggleLike(videoId) {
     const countEl = document.getElementById('like-count');
 
     if (btn) btn.classList.toggle('liked', data.liked);
+    if (btn) btn.setAttribute('aria-pressed', data.liked ? 'true' : 'false');
     if (countEl) countEl.textContent = data.like_count;
   } catch (err) {
     showToast(err.message, 'error');
@@ -412,7 +421,7 @@ async function loadRelatedVideos(currentVideo) {
 
         const thumb = v.thumbnail
           ? `<img src="/uploads/${v.thumbnail}" style="width:120px;height:67px;object-fit:cover;border-radius:6px;flex-shrink:0" alt="${escapeHtml(v.title)}">`
-          : `<div style="width:120px;height:67px;background:linear-gradient(135deg,#e8f0fe,#c5d8fd);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.5rem">▶</div>`;
+          : `<div style="width:120px;height:67px;background:linear-gradient(135deg,#e8f0fe,#c5d8fd);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.5rem"><i class="fa-solid fa-play"></i></div>`;
 
         item.innerHTML = `
           ${thumb}

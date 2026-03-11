@@ -98,7 +98,8 @@ function showToast(message, type = 'default', duration = 3500) {
   }, duration);
 }
 
-// ── Date formatting ────────────────────────────────────────────
+// ── Date formatting (Indian Standard Time — IST, UTC+5:30) ─────
+// Dates are displayed in IST since this platform targets Indian users.
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -110,7 +111,25 @@ function formatDate(dateStr) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
 
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata'
+  });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
 }
 
 function formatViews(n) {
@@ -159,7 +178,7 @@ function buildVideoCard(video) {
 
   const thumbnailHtml = video.thumbnail
     ? `<img src="/uploads/${video.thumbnail}" alt="${escapeHtml(video.title)}" loading="lazy">`
-    : `<div class="placeholder">▶</div>`;
+    : `<div class="placeholder"><i class="fa-solid fa-play"></i></div>`;
 
   const uploaderAvatar = video.avatar
     ? `<img src="/uploads/${video.avatar}" alt="${escapeHtml(video.username)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`
@@ -207,25 +226,28 @@ function buildNavbar(activePage) {
 
   navbarEl.innerHTML = `
     <a class="navbar-brand" href="/">
-      <div class="logo-icon">▶</div>
-      StreamHub
+      <div class="logo-icon"><i class="fa-solid fa-play"></i></div>
+      <span class="brand-name">StreamHub</span>
     </a>
-    <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)">
-      <input type="text" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}">
-      <button type="submit">🔍</button>
+    <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)" role="search">
+      <input type="search" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos">
+      <button type="submit" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
     </form>
     <div class="navbar-actions">
+      <button class="search-toggle-btn" id="search-toggle-btn" aria-label="Open search" aria-expanded="false">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
       ${user ? `
-        <a href="/upload" class="btn btn-primary btn-sm">+ Upload</a>
+        <a href="/upload" class="btn btn-primary btn-sm navbar-upload-btn"><i class="fa-solid fa-upload"></i> <span class="btn-label">Upload</span></a>
         <div class="user-menu">
-          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()">
+          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()" aria-label="User menu" aria-haspopup="true" aria-expanded="false">
             ${user.avatar ? `<img src="/uploads/${user.avatar}" alt="${escapeHtml(user.username)}">` : escapeHtml(avatarInitials(user.username))}
           </div>
           <div class="user-dropdown" id="user-dropdown">
-            <a href="/profile?user=${encodeURIComponent(user.username)}">👤 My Profile</a>
-            <a href="/messages">✉️ Messages</a>
+            <a href="/profile?user=${encodeURIComponent(user.username)}"><i class="fa-solid fa-user"></i> My Profile</a>
+            <a href="/messages"><i class="fa-solid fa-envelope"></i> Messages</a>
             <hr>
-            <button onclick="logout()">🚪 Logout</button>
+            <button onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
           </div>
         </div>
       ` : `
@@ -234,11 +256,86 @@ function buildNavbar(activePage) {
       `}
     </div>
   `;
+
+  // Mobile search toggle
+  const searchToggleBtn = document.getElementById('search-toggle-btn');
+  if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = navbarEl.classList.toggle('search-open');
+      searchToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (isOpen) {
+        const input = document.getElementById('search-input');
+        if (input) input.focus();
+      }
+    });
+  }
+
+  // Close mobile search on outside click
+  document.addEventListener('click', (e) => {
+    if (!navbarEl.contains(e.target) && navbarEl.classList.contains('search-open')) {
+      navbarEl.classList.remove('search-open');
+      if (searchToggleBtn) searchToggleBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Build mobile bottom navigation
+  buildBottomNav(activePage);
+}
+
+// ── Bottom Navigation (mobile) ─────────────────────────────────
+function buildBottomNav(activePage) {
+  const user = getUser();
+
+  // Remove any existing bottom nav before re-building
+  const existing = document.getElementById('bottom-nav');
+  if (existing) existing.remove();
+
+  const nav = document.createElement('nav');
+  nav.className = 'bottom-nav';
+  nav.id = 'bottom-nav';
+  nav.setAttribute('aria-label', 'Mobile navigation');
+
+  nav.innerHTML = `
+    <a href="/" class="bottom-nav-item ${activePage === 'home' ? 'active' : ''}" aria-label="Home">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </a>
+    <a href="/search" class="bottom-nav-item ${activePage === 'search' ? 'active' : ''}" aria-label="Search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span>Search</span>
+    </a>
+    ${user ? `
+      <a href="/upload" class="bottom-nav-item ${activePage === 'upload' ? 'active' : ''}" aria-label="Upload">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload</span>
+      </a>
+      <a href="/messages" class="bottom-nav-item ${activePage === 'messages' ? 'active' : ''}" aria-label="Messages">
+        <i class="fa-solid fa-comments"></i>
+        <span>Messages</span>
+      </a>
+      <a href="/profile?user=${encodeURIComponent(user.username)}" class="bottom-nav-item ${activePage === 'profile' ? 'active' : ''}" aria-label="Profile">
+        <i class="fa-solid fa-circle-user"></i>
+        <span>Profile</span>
+      </a>
+    ` : `
+      <a href="/login" class="bottom-nav-item" aria-label="Sign In">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        <span>Sign In</span>
+      </a>
+    `}
+  `;
+
+  document.body.appendChild(nav);
 }
 
 function toggleDropdown() {
   const dropdown = document.getElementById('user-dropdown');
-  if (dropdown) dropdown.classList.toggle('show');
+  const btn = document.getElementById('avatar-btn');
+  if (dropdown) {
+    const isOpen = dropdown.classList.toggle('show');
+    if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
 }
 
 document.addEventListener('click', (e) => {
@@ -246,6 +343,7 @@ document.addEventListener('click', (e) => {
   const btn = document.getElementById('avatar-btn');
   if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
     menu.classList.remove('show');
+    btn.setAttribute('aria-expanded', 'false');
   }
 });
 
@@ -264,17 +362,17 @@ function buildSidebar(activePage) {
 
   sidebarEl.innerHTML = `
     <ul class="sidebar-nav">
-      <li><a href="/" class="${activePage === 'home' ? 'active' : ''}"><span class="icon">🏠</span> Home</a></li>
-      <li><a href="/search" class="${activePage === 'search' ? 'active' : ''}"><span class="icon">🔍</span> Explore</a></li>
+      <li><a href="/" class="${activePage === 'home' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-house"></i></span> Home</a></li>
+      <li><a href="/search" class="${activePage === 'search' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Explore</a></li>
       ${user ? `
-        <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon">📺</span> Subscriptions</a></li>
+        <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-tv"></i></span> Subscriptions</a></li>
         <hr class="sidebar-divider">
-        <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon">✉️</span> Messages</a></li>
-        <li><a href="/profile?user=${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon">👤</span> Profile</a></li>
-        <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon">⬆️</span> Upload</a></li>
+        <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-envelope"></i></span> Messages</a></li>
+        <li><a href="/profile?user=${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-user"></i></span> Profile</a></li>
+        <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-upload"></i></span> Upload</a></li>
       ` : `
         <hr class="sidebar-divider">
-        <li><a href="/login"><span class="icon">🔑</span> Sign In</a></li>
+        <li><a href="/login"><span class="icon"><i class="fa-solid fa-right-to-bracket"></i></span> Sign In</a></li>
       `}
     </ul>
   `;
