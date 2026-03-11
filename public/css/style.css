@@ -1009,14 +1009,16 @@ img {
 /* ============================================================
    MESSAGES PAGE
    ============================================================ */
+.messages-main {
+  padding: 0 !important;
+}
+
 .messages-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 0;
-  height: calc(100vh - var(--navbar-height) - 48px);
+  height: calc(100vh - var(--navbar-height));
   background: var(--white);
-  border-radius: var(--radius);
-  box-shadow: var(--card-shadow);
   overflow: hidden;
 }
 
@@ -1609,22 +1611,57 @@ img {
 
   .messages-layout {
     grid-template-columns: 1fr;
-    height: calc(100vh - var(--navbar-height) - 56px - 24px);
+    height: calc(100vh - var(--navbar-height) - 56px);
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
   }
 
   .conversations-panel {
-    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: var(--white);
+    transform: translateX(0);
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    display: flex;
   }
 
-  .conversations-panel.show {
-    display: flex;
-    position: fixed;
-    top: var(--navbar-height);
-    left: 0;
-    right: 0;
-    bottom: 56px;
-    z-index: 200;
+  .conversations-panel.panel-hidden {
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+
+  .chat-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1);
     background: var(--white);
+  }
+
+  .chat-panel.panel-visible {
+    transform: translateX(0);
+  }
+
+  .chat-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--primary);
+    font-size: 1rem;
+    padding: 4px 8px 4px 0;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .chat-back-btn:hover {
+    background: var(--primary-light);
   }
 
   .profile-header {
@@ -1921,6 +1958,10 @@ img {
   position: relative;
 }
 
+.chat-back-btn {
+  display: none;
+}
+
 .reply-preview {
   display: flex;
   align-items: center;
@@ -1980,6 +2021,22 @@ img {
 
 .chat-message-bubble {
   position: relative;
+}
+
+/* ============================================================
+   PREVENT DOWNLOAD — Disable right-click context menu on
+   media elements (thumbnails and video player)
+   ============================================================ */
+.video-thumbnail img,
+.video-player-wrapper video,
+.video-player-wrapper .plyr {
+  pointer-events: none;
+}
+
+/* Re-enable pointer events for video player controls */
+.video-player-wrapper .plyr__controls,
+.video-player-wrapper video {
+  pointer-events: auto;
 }
 
 /* ============================================================

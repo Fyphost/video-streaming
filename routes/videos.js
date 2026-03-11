@@ -318,7 +318,7 @@ router.get('/thumbnail/:filename', (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
-// GET /api/videos/stream/:filename - stream video with range support
+// GET /api/videos/stream/:filename - stream video with range support (inline only)
 router.get('/stream/:filename', (req, res) => {
   const filePath = path.join(uploadsDir, req.params.filename);
 
@@ -355,13 +355,17 @@ router.get('/stream/:filename', (req, res) => {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': chunkSize,
-      'Content-Type': contentType
+      'Content-Type': contentType,
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff'
     });
     fileStream.pipe(res);
   } else {
     res.writeHead(200, {
       'Content-Length': fileSize,
-      'Content-Type': contentType
+      'Content-Type': contentType,
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff'
     });
     fs.createReadStream(filePath).pipe(res);
   }

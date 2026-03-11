@@ -23,6 +23,29 @@ let activeConversationId = null;
 let pollInterval = null;
 let replyToMsg = null; // currently replying to this message object
 
+// Detect mobile layout
+function isMobile() {
+  return window.innerWidth <= 768;
+}
+
+// Show conversations panel (mobile)
+function showConversationsPanel() {
+  const convPanel = document.getElementById('conversations-panel');
+  const chatPanel = document.getElementById('chat-panel');
+  if (convPanel) convPanel.classList.remove('panel-hidden');
+  if (chatPanel) chatPanel.classList.remove('panel-visible');
+}
+
+// Show chat panel (mobile)
+function showChatPanel() {
+  const convPanel = document.getElementById('conversations-panel');
+  const chatPanel = document.getElementById('chat-panel');
+  if (isMobile()) {
+    if (convPanel) convPanel.classList.add('panel-hidden');
+    if (chatPanel) chatPanel.classList.add('panel-visible');
+  }
+}
+
 async function loadConversations() {
   const listEl = document.getElementById('conversations-list');
   if (!listEl) return;
@@ -98,19 +121,28 @@ async function searchConversations(query) {
         div.className = 'suggestion-item';
 
         const avatarEl = u.avatar
-          ? Object.assign(document.createElement('img'), { src: `/uploads/${u.avatar}`, alt: u.username, style: 'width:24px;height:24px;border-radius:50%;object-fit:cover;margin-right:8px' })
+          ? Object.assign(document.createElement('img'), { src: `/uploads/${u.avatar}`, alt: u.username, style: 'width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;flex-shrink:0' })
           : (() => {
               const s = document.createElement('span');
-              s.style.cssText = 'width:24px;height:24px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;margin-right:8px';
+              s.style.cssText = 'width:28px;height:28px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;margin-right:8px;flex-shrink:0';
               s.textContent = avatarInitials(u.username);
               return s;
             })();
 
         const nameEl = document.createElement('span');
+        nameEl.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         nameEl.textContent = u.username;
+
+        const bluetickEl = u.bluetick === 2 ? (() => {
+          const ic = document.createElement('i');
+          ic.className = 'fa-solid fa-circle-check bluetick-icon';
+          ic.style.marginLeft = '4px';
+          return ic;
+        })() : null;
 
         div.appendChild(avatarEl);
         div.appendChild(nameEl);
+        if (bluetickEl) div.appendChild(bluetickEl);
         div.addEventListener('mousedown', (e) => {
           e.preventDefault();
           openConversation(u.id, u.username, u.avatar || '');
@@ -154,8 +186,11 @@ async function openConversation(userId, username, avatar, existingMessages = nul
 
   chatPanel.innerHTML = `
     <div class="chat-header">
+      <button class="chat-back-btn" onclick="goBackToConversations()" aria-label="Back to conversations">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
       ${avatarHtml}
-      <a href="/@${encodeURIComponent(username)}" style="text-decoration:none;color:var(--text-primary)">${escapeHtml(username)}</a>
+      <a href="/@${encodeURIComponent(username)}" style="text-decoration:none;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(username)}</a>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div id="reply-preview" class="reply-preview" style="display:none"></div>
@@ -164,6 +199,9 @@ async function openConversation(userId, username, avatar, existingMessages = nul
       <button class="btn btn-primary" onclick="sendMessage(${userId})"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
   `;
+
+  // Show chat panel (handles mobile transition)
+  showChatPanel();
 
   const messagesEl = document.getElementById('chat-messages');
 
@@ -176,6 +214,13 @@ async function openConversation(userId, username, avatar, existingMessages = nul
   // Auto-refresh messages every 3 seconds
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(() => fetchMessages(userId), 3000);
+}
+
+function goBackToConversations() {
+  if (pollInterval) clearInterval(pollInterval);
+  activeConversationId = null;
+  showConversationsPanel();
+  loadConversations();
 }
 
 async function fetchMessages(userId) {
@@ -304,6 +349,8 @@ async function sendMessage(userId) {
 async function startNewConversation() {
   const searchInput = document.getElementById('conv-search');
   if (searchInput) {
+    // On mobile, show the conversations panel first
+    if (isMobile()) showConversationsPanel();
     searchInput.focus();
     showToast('Type a username in the search box above', 'default', 2000);
     return;

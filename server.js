@@ -99,6 +99,14 @@ app.get('/messages', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'messages.html'));
 });
 
+app.get('/history', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'history.html'));
+});
+
+app.get('/admin/bluetick', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'admin-bluetick.html'));
+});
+
 app.get('/search', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'search.html'));
 });

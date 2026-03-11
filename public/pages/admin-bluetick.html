@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Bluetick Requests — StreamHub</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="admin-bluetick">
+
+  <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content" style="padding:24px">
+      <div style="max-width:900px;margin:0 auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+          <h1 style="font-size:1.5rem;font-weight:700"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Bluetick Verification Requests</h1>
+          <button class="btn btn-outline btn-sm" onclick="loadRequests()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div id="requests-container">
+          <div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      buildNavbar('admin-bluetick');
+      buildSidebar('admin-bluetick');
+
+      if (!isLoggedIn()) {
+        window.location.href = '/login';
+        return;
+      }
+
+      loadRequests();
+    });
+
+    async function loadRequests() {
+      const container = document.getElementById('requests-container');
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>';
+
+      try {
+        const data = await apiRequest('/api/users/admin/bluetick');
+        renderRequests(data.requests || []);
+      } catch (err) {
+        if (err.message && err.message.includes('Admin')) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon"><i class="fa-solid fa-lock"></i></div>
+              <h3>Admin Access Required</h3>
+              <p>You do not have permission to view this page.</p>
+              <a href="/" class="btn btn-primary" style="margin-top:12px">Go Home</a>
+            </div>`;
+        } else {
+          container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>${escapeHtml(err.message)}</h3></div>`;
+        }
+      }
+    }
+
+    function renderRequests(requests) {
+      const container = document.getElementById('requests-container');
+
+      if (!requests.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon"><i class="fa-solid fa-inbox"></i></div>
+            <h3>No bluetick requests</h3>
+            <p>No verification requests have been submitted yet.</p>
+          </div>`;
+        return;
+      }
+
+      const statusColors = { pending: '#f59e0b', approved: '#1e8e3e', rejected: '#d93025' };
+
+      container.innerHTML = '';
+
+      // Stats row
+      const pending = requests.filter(r => r.status === 'pending').length;
+      const approved = requests.filter(r => r.status === 'approved').length;
+      const rejected = requests.filter(r => r.status === 'rejected').length;
+
+      const statsRow = document.createElement('div');
+      statsRow.style.cssText = 'display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap';
+      statsRow.innerHTML = `
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#f59e0b">${pending}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Pending</div>
+        </div>
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#1e8e3e">${approved}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Approved</div>
+        </div>
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#d93025">${rejected}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Rejected</div>
+        </div>
+      `;
+      container.appendChild(statsRow);
+
+      requests.forEach(req => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.cssText = 'padding:20px;margin-bottom:16px';
+
+        const avatarHtml = req.avatar
+          ? `<img src="/uploads/${escapeHtml(req.avatar)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover" alt="${escapeHtml(req.username)}">`
+          : `<div style="width:48px;height:48px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem">${escapeHtml(req.username.charAt(0).toUpperCase())}</div>`;
+
+        const igLink = req.instagram_url
+          ? `<a href="${escapeHtml(req.instagram_url)}" target="_blank" rel="noopener noreferrer" style="color:#e1306c;font-size:0.85rem"><i class="fa-brands fa-instagram"></i> ${escapeHtml(req.instagram_url)}</a>`
+          : '<span style="font-size:0.85rem;color:var(--text-light)">No Instagram provided</span>';
+
+        const statusColor = statusColors[req.status] || '#5f6368';
+        const statusBadge = `<span style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:600;text-transform:uppercase">${escapeHtml(req.status)}</span>`;
+
+        card.innerHTML = `
+          <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+            <a href="/@${encodeURIComponent(req.username)}" target="_blank" style="flex-shrink:0">${avatarHtml}</a>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+                <a href="/@${encodeURIComponent(req.username)}" target="_blank" style="font-weight:700;font-size:1rem;color:var(--text-primary)">${escapeHtml(req.username)}</a>
+                ${req.bluetick === 2 ? '<i class="fa-solid fa-circle-check bluetick-icon" title="Already verified"></i>' : ''}
+                ${statusBadge}
+                <span style="font-size:0.8rem;color:var(--text-light)">${formatDate(req.created_at)}</span>
+              </div>
+              <div style="margin-bottom:8px">${igLink}</div>
+              ${req.reason ? `<div style="font-size:0.88rem;color:var(--text-secondary);background:var(--bg);border-radius:8px;padding:10px 14px;line-height:1.5;word-break:break-word">${escapeHtml(req.reason)}</div>` : ''}
+            </div>
+            ${req.status === 'pending' ? `
+            <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+              <button class="btn btn-primary btn-sm" onclick="handleRequest(${req.id}, 'approve')"><i class="fa-solid fa-check"></i> Approve</button>
+              <button class="btn btn-danger btn-sm" onclick="handleRequest(${req.id}, 'reject')"><i class="fa-solid fa-xmark"></i> Reject</button>
+            </div>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function handleRequest(id, action) {
+      const label = action === 'approve' ? 'approve' : 'reject';
+      if (!confirm(`Are you sure you want to ${label} this request?`)) return;
+
+      try {
+        const data = await apiRequest(`/api/users/admin/bluetick/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ action })
+        });
+        showToast(data.message, 'success');
+        loadRequests();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

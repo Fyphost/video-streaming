@@ -308,16 +308,57 @@ async function saveProfile() {
 }
 
 async function applyBluetick() {
-  const reason = prompt('Why do you deserve a verified badge? (optional)');
-  if (reason === null) return; // User cancelled
+  // Show a simple modal for bluetick application with Instagram URL
+  let modal = document.getElementById('bluetick-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'bluetick-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div class="card" style="width:100%;max-width:480px;padding:24px;position:relative">
+      <button onclick="document.getElementById('bluetick-modal').remove()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-secondary)">&times;</button>
+      <h3 style="margin-bottom:4px"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Apply for Verified Badge</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">Tell us why you deserve a verified badge. Adding your Instagram profile helps verify your identity.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Instagram Profile URL (optional)</label>
+        <input type="url" id="bluetick-instagram" class="form-control" placeholder="https://www.instagram.com/yourusername" autocomplete="off">
+        <p class="form-hint">e.g. https://www.instagram.com/yourusername</p>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Why do you deserve verification? (optional)</label>
+        <textarea id="bluetick-reason" class="form-control textarea" rows="3" placeholder="Describe your channel, reach, or why you should be verified…" maxlength="500" style="min-height:80px"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="document.getElementById('bluetick-modal').remove()">Cancel</button>
+        <button class="btn btn-primary" id="bluetick-submit-btn" onclick="submitBluetickApplication()"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+      </div>
+    </div>
+  `;
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function submitBluetickApplication() {
+  const igInput = document.getElementById('bluetick-instagram');
+  const reasonInput = document.getElementById('bluetick-reason');
+  const btn = document.getElementById('bluetick-submit-btn');
+
+  const instagram_url = igInput ? igInput.value.trim() : '';
+  const reason = reasonInput ? reasonInput.value.trim() : '';
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…'; }
 
   try {
     await apiRequest('/api/users/me/bluetick', {
       method: 'POST',
-      body: JSON.stringify({ reason: reason || '' })
+      body: JSON.stringify({ reason, instagram_url })
     });
     showToast('Verification request submitted! Our team will review it shortly.', 'success');
+    const modal = document.getElementById('bluetick-modal');
+    if (modal) modal.remove();
   } catch (err) {
     showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request'; }
   }
 }
