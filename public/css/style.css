@@ -1212,6 +1212,17 @@ img {
 }
 
 /* ============================================================
+   PLYR VIDEO PLAYER OVERRIDES
+   ============================================================ */
+.video-player-wrapper .plyr {
+  border-radius: 0;
+}
+
+.video-player-wrapper .plyr--video {
+  width: 100%;
+}
+
+/* ============================================================
    LOADING & EMPTY STATES
    ============================================================ */
 .loading-spinner {
@@ -1358,11 +1369,64 @@ img {
 }
 
 /* ============================================================
+   MOBILE MENU BUTTON
+   ============================================================ */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.mobile-menu-btn:hover {
+  background: var(--bg);
+}
+
+/* ============================================================
+   SIDEBAR OVERLAY (for mobile drawer)
+   ============================================================ */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+
+.sidebar-overlay.show {
+  display: block;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+
   .sidebar {
     display: none;
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    width: var(--sidebar-width);
+    height: calc(100vh - var(--navbar-height));
+    z-index: 100;
+    background: var(--white);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar.show {
+    display: block;
   }
 
   .main-content {
@@ -1409,5 +1473,13 @@ img {
 
   .auth-card {
     padding: 24px;
+  }
+
+  .btn-label {
+    display: none;
+  }
+
+  .navbar-search {
+    max-width: none;
   }
 }

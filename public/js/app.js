@@ -159,7 +159,7 @@ function buildVideoCard(video) {
 
   const thumbnailHtml = video.thumbnail
     ? `<img src="/uploads/${video.thumbnail}" alt="${escapeHtml(video.title)}" loading="lazy">`
-    : `<div class="placeholder">▶</div>`;
+    : `<div class="placeholder"><i class="fa-solid fa-play"></i></div>`;
 
   const uploaderAvatar = video.avatar
     ? `<img src="/uploads/${video.avatar}" alt="${escapeHtml(video.username)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`
@@ -206,26 +206,29 @@ function buildNavbar(activePage) {
   if (!navbarEl) return;
 
   navbarEl.innerHTML = `
+    <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
     <a class="navbar-brand" href="/">
-      <div class="logo-icon">▶</div>
+      <div class="logo-icon"><i class="fa-solid fa-play"></i></div>
       StreamHub
     </a>
     <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)">
-      <input type="text" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}">
-      <button type="submit">🔍</button>
+      <input type="text" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos">
+      <button type="submit" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
     </form>
     <div class="navbar-actions">
       ${user ? `
-        <a href="/upload" class="btn btn-primary btn-sm">+ Upload</a>
+        <a href="/upload" class="btn btn-primary btn-sm"><i class="fa-solid fa-upload"></i> <span class="btn-label">Upload</span></a>
         <div class="user-menu">
-          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()">
+          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()" aria-label="User menu" aria-haspopup="true">
             ${user.avatar ? `<img src="/uploads/${user.avatar}" alt="${escapeHtml(user.username)}">` : escapeHtml(avatarInitials(user.username))}
           </div>
           <div class="user-dropdown" id="user-dropdown">
-            <a href="/profile?user=${encodeURIComponent(user.username)}">👤 My Profile</a>
-            <a href="/messages">✉️ Messages</a>
+            <a href="/profile?user=${encodeURIComponent(user.username)}"><i class="fa-solid fa-user"></i> My Profile</a>
+            <a href="/messages"><i class="fa-solid fa-envelope"></i> Messages</a>
             <hr>
-            <button onclick="logout()">🚪 Logout</button>
+            <button onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
           </div>
         </div>
       ` : `
@@ -234,11 +237,34 @@ function buildNavbar(activePage) {
       `}
     </div>
   `;
+
+  // Mobile menu toggle
+  const mobileBtn = document.getElementById('mobile-menu-btn');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+
+  if (mobileBtn && sidebar) {
+    mobileBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('show');
+      if (overlay) overlay.classList.toggle('show');
+    });
+  }
+
+  if (overlay && sidebar) {
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('show');
+      overlay.classList.remove('show');
+    });
+  }
 }
 
 function toggleDropdown() {
   const dropdown = document.getElementById('user-dropdown');
-  if (dropdown) dropdown.classList.toggle('show');
+  const btn = document.getElementById('avatar-btn');
+  if (dropdown) {
+    const isOpen = dropdown.classList.toggle('show');
+    if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
 }
 
 document.addEventListener('click', (e) => {
@@ -246,6 +272,7 @@ document.addEventListener('click', (e) => {
   const btn = document.getElementById('avatar-btn');
   if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
     menu.classList.remove('show');
+    btn.setAttribute('aria-expanded', 'false');
   }
 });
 
@@ -264,17 +291,17 @@ function buildSidebar(activePage) {
 
   sidebarEl.innerHTML = `
     <ul class="sidebar-nav">
-      <li><a href="/" class="${activePage === 'home' ? 'active' : ''}"><span class="icon">🏠</span> Home</a></li>
-      <li><a href="/search" class="${activePage === 'search' ? 'active' : ''}"><span class="icon">🔍</span> Explore</a></li>
+      <li><a href="/" class="${activePage === 'home' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-house"></i></span> Home</a></li>
+      <li><a href="/search" class="${activePage === 'search' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-magnifying-glass"></i></span> Explore</a></li>
       ${user ? `
-        <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon">📺</span> Subscriptions</a></li>
+        <li><a href="/?tab=feed" class="${activePage === 'feed' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-tv"></i></span> Subscriptions</a></li>
         <hr class="sidebar-divider">
-        <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon">✉️</span> Messages</a></li>
-        <li><a href="/profile?user=${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon">👤</span> Profile</a></li>
-        <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon">⬆️</span> Upload</a></li>
+        <li><a href="/messages" class="${activePage === 'messages' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-envelope"></i></span> Messages</a></li>
+        <li><a href="/profile?user=${encodeURIComponent(user.username)}" class="${activePage === 'profile' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-user"></i></span> Profile</a></li>
+        <li><a href="/upload" class="${activePage === 'upload' ? 'active' : ''}"><span class="icon"><i class="fa-solid fa-upload"></i></span> Upload</a></li>
       ` : `
         <hr class="sidebar-divider">
-        <li><a href="/login"><span class="icon">🔑</span> Sign In</a></li>
+        <li><a href="/login"><span class="icon"><i class="fa-solid fa-right-to-bracket"></i></span> Sign In</a></li>
       `}
     </ul>
   `;

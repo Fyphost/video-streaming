@@ -4,11 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profile — StreamHub</title>
+  <meta name="description" content="View this creator's profile, videos and followers on StreamHub.">
+  <meta property="og:title" content="Profile — StreamHub">
+  <meta property="og:description" content="View this creator's profile, videos and followers on StreamHub.">
+  <meta property="og:type" content="profile">
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-page="profile">
 
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar"></aside>
@@ -23,8 +30,8 @@
 
       <!-- Tabs -->
       <div class="tabs" id="profile-tabs" style="display:none">
-        <button class="tab-btn active" onclick="switchTab('videos')">📹 Videos</button>
-        <button class="tab-btn" onclick="switchTab('liked')">❤️ Liked</button>
+        <button class="tab-btn active" onclick="switchTab('videos')"><i class="fa-solid fa-video"></i> Videos</button>
+        <button class="tab-btn" onclick="switchTab('liked')"><i class="fa-solid fa-heart"></i> Liked</button>
       </div>
 
       <!-- Videos Grid -->
@@ -79,7 +86,7 @@
         const data = await apiRequest('/api/users/me/liked');
         container.innerHTML = '';
         if (!data.videos || data.videos.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="icon">❤️</div><h3>No liked videos yet</h3></div>';
+          container.innerHTML = '<div class="empty-state"><div class="icon"><i class="fa-solid fa-heart"></i></div><h3>No liked videos yet</h3></div>';
           return;
         }
         const grid = document.createElement('div');
@@ -87,7 +94,7 @@
         data.videos.forEach(v => grid.appendChild(buildVideoCard(v)));
         container.appendChild(grid);
       } catch (err) {
-        container.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>${escapeHtml(err.message)}</h3></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>${escapeHtml(err.message)}</h3></div>`;
       }
     }
   </script>

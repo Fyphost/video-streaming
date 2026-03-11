@@ -4,11 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Messages — StreamHub</title>
+  <meta name="description" content="Send and receive private messages with other creators on StreamHub.">
+  <meta property="og:title" content="Messages — StreamHub">
+  <meta property="og:description" content="Send and receive private messages with other creators on StreamHub.">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="noindex, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-page="messages">
 
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar"></aside>
@@ -20,7 +27,7 @@
           <div class="conversations-header">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <span>Messages</span>
-              <button class="btn btn-primary btn-sm" onclick="startNewConversation()" title="New Message">+</button>
+              <button class="btn btn-primary btn-sm" onclick="startNewConversation()" title="New Message"><i class="fa-solid fa-plus"></i></button>
             </div>
           </div>
           <div class="conversations-list" id="conversations-list">
@@ -33,9 +40,9 @@
         <!-- Chat area -->
         <div class="chat-panel" id="chat-panel">
           <div class="chat-empty">
-            <div class="icon">💬</div>
+            <div class="icon"><i class="fa-solid fa-comment-dots"></i></div>
             <p>Select a conversation or start a new one</p>
-            <button class="btn btn-primary btn-sm" onclick="startNewConversation()" style="margin-top:8px">+ New Message</button>
+            <button class="btn btn-primary btn-sm" onclick="startNewConversation()" style="margin-top:8px"><i class="fa-solid fa-plus"></i> New Message</button>
           </div>
         </div>
       </div>

@@ -58,13 +58,13 @@ async function loadProfile(username) {
         </div>
         <div style="margin-top:16px;display:flex;gap:8px">
           ${isMe ? `
-            <button class="btn btn-outline" onclick="showEditProfile()">✏️ Edit Profile</button>
-            <a href="/upload" class="btn btn-primary">+ Upload Video</a>
+            <button class="btn btn-outline" onclick="showEditProfile()"><i class="fa-solid fa-pen"></i> Edit Profile</button>
+            <a href="/upload" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload Video</a>
           ` : currentUser ? `
             <button class="btn ${data.is_following ? 'btn-primary' : 'btn-outline'}" id="follow-btn" onclick="toggleFollowProfile(${data.id})">
               ${data.is_following ? 'Following' : 'Follow'}
             </button>
-            <a href="/messages?user=${data.id}" class="btn btn-outline">✉️ Message</a>
+            <a href="/messages?user=${data.id}" class="btn btn-outline"><i class="fa-solid fa-envelope"></i> Message</a>
           ` : `
             <a href="/login" class="btn btn-primary">Follow</a>
           `}
@@ -76,7 +76,7 @@ async function loadProfile(username) {
     if (!data.videos || data.videos.length === 0) {
       videosEl.innerHTML = `
         <div class="empty-state">
-          <div class="icon">📹</div>
+          <div class="icon"><i class="fa-solid fa-video"></i></div>
           <h3>${isMe ? 'You haven\'t uploaded any videos' : escapeHtml(data.username) + ' hasn\'t uploaded any videos'}</h3>
           ${isMe ? '<a href="/upload" class="btn btn-primary" style="margin-top:12px">Upload Your First Video</a>' : ''}
         </div>`;
@@ -99,7 +99,7 @@ async function loadProfile(username) {
   } catch (err) {
     headerEl.innerHTML = `
       <div class="empty-state">
-        <div class="icon">❌</div>
+        <div class="icon"><i class="fa-solid fa-circle-xmark"></i></div>
         <h3>User not found</h3>
         <p>${escapeHtml(err.message)}</p>
       </div>`;

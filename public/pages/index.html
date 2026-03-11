@@ -4,19 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StreamHub — Video Streaming Platform</title>
+  <meta name="description" content="StreamHub is a free video streaming platform. Watch, upload and share videos with creators worldwide.">
+  <meta property="og:title" content="StreamHub — Video Streaming Platform">
+  <meta property="og:description" content="Watch, upload and share videos with creators worldwide on StreamHub.">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-page="home">
 
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar"></aside>
 
     <main class="main-content">
       <div class="tabs" id="tabs">
-        <button class="tab-btn active" data-tab="all">🏠 All Videos</button>
-        <button class="tab-btn" data-tab="feed">📺 Subscriptions</button>
+        <button class="tab-btn active" data-tab="all"><i class="fa-solid fa-house"></i> All Videos</button>
+        <button class="tab-btn" data-tab="feed"><i class="fa-solid fa-tv"></i> Subscriptions</button>
       </div>
 
       <div class="video-grid" id="video-grid">
