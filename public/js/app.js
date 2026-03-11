@@ -98,7 +98,8 @@ function showToast(message, type = 'default', duration = 3500) {
   }, duration);
 }
 
-// ── Date formatting ────────────────────────────────────────────
+// ── Date formatting (Indian Standard Time — IST, UTC+5:30) ─────
+// Dates are displayed in IST since this platform targets Indian users.
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -110,7 +111,25 @@ function formatDate(dateStr) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
 
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata'
+  });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
 }
 
 function formatViews(n) {
@@ -206,22 +225,22 @@ function buildNavbar(activePage) {
   if (!navbarEl) return;
 
   navbarEl.innerHTML = `
-    <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
-      <i class="fa-solid fa-bars"></i>
-    </button>
     <a class="navbar-brand" href="/">
       <div class="logo-icon"><i class="fa-solid fa-play"></i></div>
-      StreamHub
+      <span class="brand-name">StreamHub</span>
     </a>
-    <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)">
-      <input type="text" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos">
+    <form class="navbar-search" id="search-form" onsubmit="handleSearch(event)" role="search">
+      <input type="search" placeholder="Search videos..." id="search-input" value="${escapeHtml(searchQuery)}" aria-label="Search videos">
       <button type="submit" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
     </form>
     <div class="navbar-actions">
+      <button class="search-toggle-btn" id="search-toggle-btn" aria-label="Open search" aria-expanded="false">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
       ${user ? `
-        <a href="/upload" class="btn btn-primary btn-sm"><i class="fa-solid fa-upload"></i> <span class="btn-label">Upload</span></a>
+        <a href="/upload" class="btn btn-primary btn-sm navbar-upload-btn"><i class="fa-solid fa-upload"></i> <span class="btn-label">Upload</span></a>
         <div class="user-menu">
-          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()" aria-label="User menu" aria-haspopup="true">
+          <div class="user-avatar-btn" id="avatar-btn" onclick="toggleDropdown()" aria-label="User menu" aria-haspopup="true" aria-expanded="false">
             ${user.avatar ? `<img src="/uploads/${user.avatar}" alt="${escapeHtml(user.username)}">` : escapeHtml(avatarInitials(user.username))}
           </div>
           <div class="user-dropdown" id="user-dropdown">
@@ -238,24 +257,76 @@ function buildNavbar(activePage) {
     </div>
   `;
 
-  // Mobile menu toggle
-  const mobileBtn = document.getElementById('mobile-menu-btn');
-  const sidebar = document.getElementById('sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-
-  if (mobileBtn && sidebar) {
-    mobileBtn.addEventListener('click', () => {
-      sidebar.classList.toggle('show');
-      if (overlay) overlay.classList.toggle('show');
+  // Mobile search toggle
+  const searchToggleBtn = document.getElementById('search-toggle-btn');
+  if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = navbarEl.classList.toggle('search-open');
+      searchToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (isOpen) {
+        const input = document.getElementById('search-input');
+        if (input) input.focus();
+      }
     });
   }
 
-  if (overlay && sidebar) {
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('show');
-      overlay.classList.remove('show');
-    });
-  }
+  // Close mobile search on outside click
+  document.addEventListener('click', (e) => {
+    if (!navbarEl.contains(e.target) && navbarEl.classList.contains('search-open')) {
+      navbarEl.classList.remove('search-open');
+      if (searchToggleBtn) searchToggleBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Build mobile bottom navigation
+  buildBottomNav(activePage);
+}
+
+// ── Bottom Navigation (mobile) ─────────────────────────────────
+function buildBottomNav(activePage) {
+  const user = getUser();
+
+  // Remove any existing bottom nav before re-building
+  const existing = document.getElementById('bottom-nav');
+  if (existing) existing.remove();
+
+  const nav = document.createElement('nav');
+  nav.className = 'bottom-nav';
+  nav.id = 'bottom-nav';
+  nav.setAttribute('aria-label', 'Mobile navigation');
+
+  nav.innerHTML = `
+    <a href="/" class="bottom-nav-item ${activePage === 'home' ? 'active' : ''}" aria-label="Home">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </a>
+    <a href="/search" class="bottom-nav-item ${activePage === 'search' ? 'active' : ''}" aria-label="Search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span>Search</span>
+    </a>
+    ${user ? `
+      <a href="/upload" class="bottom-nav-item ${activePage === 'upload' ? 'active' : ''}" aria-label="Upload">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload</span>
+      </a>
+      <a href="/messages" class="bottom-nav-item ${activePage === 'messages' ? 'active' : ''}" aria-label="Messages">
+        <i class="fa-solid fa-comments"></i>
+        <span>Messages</span>
+      </a>
+      <a href="/profile?user=${encodeURIComponent(user.username)}" class="bottom-nav-item ${activePage === 'profile' ? 'active' : ''}" aria-label="Profile">
+        <i class="fa-solid fa-circle-user"></i>
+        <span>Profile</span>
+      </a>
+    ` : `
+      <a href="/login" class="bottom-nav-item" aria-label="Sign In">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        <span>Sign In</span>
+      </a>
+    `}
+  `;
+
+  document.body.appendChild(nav);
 }
 
 function toggleDropdown() {

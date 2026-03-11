@@ -111,12 +111,30 @@ router.put('/me', authenticateToken, (req, res) => {
       return res.status(400).json({ error: err.message });
     }
 
-    const { bio } = req.body;
+    const { bio, username } = req.body;
     const avatarFile = req.file;
 
+    // Validate and update username if provided
+    if (username !== undefined && username !== '') {
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        return res.status(400).json({ error: 'Username must be 3–30 characters (letters, numbers, underscores only).' });
+      }
+      // Check uniqueness
+      const existing = db.get('SELECT id FROM users WHERE username = ? AND id != ?', [username, req.user.id]);
+      if (existing) {
+        return res.status(409).json({ error: 'Username already taken.' });
+      }
+    }
+
     try {
-      if (avatarFile) {
+      const newUsername = (username !== undefined && username !== '') ? username : null;
+
+      if (avatarFile && newUsername) {
+        db.run('UPDATE users SET avatar = ?, bio = ?, username = ? WHERE id = ?', [avatarFile.filename, bio || '', newUsername, req.user.id]);
+      } else if (avatarFile) {
         db.run('UPDATE users SET avatar = ?, bio = ? WHERE id = ?', [avatarFile.filename, bio || '', req.user.id]);
+      } else if (newUsername) {
+        db.run('UPDATE users SET bio = ?, username = ? WHERE id = ?', [bio || '', newUsername, req.user.id]);
       } else {
         db.run('UPDATE users SET bio = ? WHERE id = ?', [bio || '', req.user.id]);
       }
