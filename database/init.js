@@ -1,6 +1,7 @@
 const { Database } = require('node-sqlite3-wasm');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 const dbDir = path.join(__dirname, '..', 'database');
 if (!fs.existsSync(dbDir)) {
@@ -154,8 +155,23 @@ function initDatabase() {
   `);
 
   migrateDatabase();
+  seedAdminUser();
 
   console.log('Database initialized successfully');
+}
+
+function seedAdminUser() {
+  const existing = db.get('SELECT id FROM users WHERE username = ?', ['admin']);
+  if (!existing) {
+    const hash = bcrypt.hashSync('SSss12@@', 12);
+    db.run(
+      'INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, 1)',
+      ['admin', 'admin@streamhub.local', hash]
+    );
+  } else {
+    // Ensure the admin user has is_admin=1
+    db.run('UPDATE users SET is_admin = 1 WHERE username = ?', ['admin']);
+  }
 }
 
 function migrateDatabase() {
@@ -166,6 +182,7 @@ function migrateDatabase() {
     "ALTER TABLE videos ADD COLUMN vid_id TEXT",
     "ALTER TABLE videos ADD COLUMN category TEXT DEFAULT ''",
     "ALTER TABLE messages ADD COLUMN reply_to_id INTEGER DEFAULT NULL",
+    "ALTER TABLE messages ADD COLUMN image TEXT DEFAULT NULL",
     "ALTER TABLE bluetick_requests ADD COLUMN instagram_url TEXT DEFAULT ''"
   ];
   for (const sql of migrations) {

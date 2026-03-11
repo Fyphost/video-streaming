@@ -77,13 +77,11 @@ async function loadProfile(username) {
             <button class="btn btn-outline" onclick="showEditProfile()"><i class="fa-solid fa-pen"></i> Edit Profile</button>
             <a href="/upload" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload Video</a>
             ${data.bluetick !== 2 ? `<button class="btn btn-outline" onclick="applyBluetick()" title="Apply for Verified Badge"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Get Verified</button>` : ''}
-          ` : currentUser ? `
-            <button class="btn ${data.is_following ? 'btn-primary' : 'btn-outline'}" id="follow-btn" onclick="toggleFollowProfile(${data.id})">
-              ${data.is_following ? 'Following' : 'Follow'}
-            </button>
-            <a href="/messages?user=${data.id}" class="btn btn-outline"><i class="fa-solid fa-envelope"></i> Message</a>
           ` : `
-            <a href="/login" class="btn btn-primary">Follow</a>
+            <button class="btn ${data.is_following ? 'btn-primary' : 'btn-outline'}" id="follow-btn" onclick="toggleFollowProfile(${data.id})">
+              <i class="fa-solid fa-user-plus"></i> ${data.is_following ? 'Following' : 'Follow'}
+            </button>
+            <button class="btn btn-outline" onclick="openMessageToUser(${data.id})"><i class="fa-solid fa-comment-dots"></i> Message</button>
           `}
         </div>
       </div>
@@ -133,7 +131,7 @@ async function toggleFollowProfile(userId) {
     const data = await apiRequest(`/api/users/${userId}/follow`, { method: 'POST' });
     const btn = document.getElementById('follow-btn');
     if (btn) {
-      btn.textContent = data.following ? 'Following' : 'Follow';
+      btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> ${data.following ? 'Following' : 'Follow'}`;
       btn.classList.toggle('btn-primary', data.following);
       btn.classList.toggle('btn-outline', !data.following);
     }
@@ -141,6 +139,14 @@ async function toggleFollowProfile(userId) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+function openMessageToUser(userId) {
+  if (!isLoggedIn()) {
+    window.location.href = '/login';
+    return;
+  }
+  window.location.href = `/messages?user=${userId}`;
 }
 
 function showEditProfile() {

@@ -49,7 +49,6 @@ app.use('/api/users', apiLimiter, require('./routes/users'));
 app.use('/api/comments', apiLimiter, require('./routes/comments'));
 app.use('/api/likes', apiLimiter, require('./routes/likes'));
 app.use('/api/messages', apiLimiter, require('./routes/messages'));
-app.use('/api/playlists', apiLimiter, require('./routes/playlists'));
 
 // Rate limiter for HTML page routes
 const pageLimiter = rateLimit({
@@ -107,13 +106,12 @@ app.get('/admin/bluetick', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'admin-bluetick.html'));
 });
 
-app.get('/search', pageLimiter, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'pages', 'search.html'));
+app.get('/admin_btk', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'admin-btk.html'));
 });
 
-// /playlist/:pid — playlist page
-app.get('/playlist/:pid', pageLimiter, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'pages', 'playlist.html'));
+app.get('/search', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'search.html'));
 });
 
 // 404 fallback
