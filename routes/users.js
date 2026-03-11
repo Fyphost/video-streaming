@@ -214,7 +214,12 @@ router.post('/me/bluetick', authenticateToken, (req, res) => {
     // Basic Instagram URL validation if provided
     if (instagram_url && instagram_url.trim()) {
       const igUrl = instagram_url.trim();
-      if (!/^https?:\/\/(www\.)?instagram\.com\//.test(igUrl)) {
+      try {
+        const parsed = new URL(igUrl);
+        if (parsed.hostname !== 'instagram.com' && parsed.hostname !== 'www.instagram.com') {
+          return res.status(400).json({ error: 'Please provide a valid Instagram profile URL (instagram.com).' });
+        }
+      } catch {
         return res.status(400).json({ error: 'Please provide a valid Instagram profile URL.' });
       }
     }

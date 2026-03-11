@@ -458,7 +458,9 @@ function renderVideoPlayer(video) {
 
   // Record watch history for logged-in users
   if (isLoggedIn()) {
-    apiRequest(`/api/users/me/history/${video.id}`, { method: 'POST' }).catch(() => {});
+    apiRequest(`/api/users/me/history/${video.id}`, { method: 'POST' }).catch((err) => {
+      console.error('Watch history recording failed:', err);
+    });
   }
 
   loadUploaderInfo(video.user_id, video.username);

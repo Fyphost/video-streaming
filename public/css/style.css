@@ -2025,18 +2025,12 @@ img {
 
 /* ============================================================
    PREVENT DOWNLOAD — Disable right-click context menu on
-   media elements (thumbnails and video player)
+   thumbnails (via JS oncontextmenu on each img element).
+   The video element uses controlslist="nodownload" attribute.
    ============================================================ */
-.video-thumbnail img,
-.video-player-wrapper video,
-.video-player-wrapper .plyr {
-  pointer-events: none;
-}
-
-/* Re-enable pointer events for video player controls */
-.video-player-wrapper .plyr__controls,
-.video-player-wrapper video {
-  pointer-events: auto;
+.video-thumbnail img {
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 /* ============================================================
