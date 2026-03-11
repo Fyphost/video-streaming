@@ -162,8 +162,9 @@ function initDatabase() {
 
 function seedAdminUser() {
   const existing = db.get('SELECT id FROM users WHERE username = ?', ['admin']);
+  const adminPassword = process.env.ADMIN_PASSWORD || 'SSss12@@';
   if (!existing) {
-    const hash = bcrypt.hashSync('SSss12@@', 12);
+    const hash = bcrypt.hashSync(adminPassword, 12);
     db.run(
       'INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, 1)',
       ['admin', 'admin@streamhub.local', hash]

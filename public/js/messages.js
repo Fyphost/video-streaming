@@ -271,10 +271,14 @@ function renderMessages(container, messages, userId) {
     div.dataset.msgId = msg.id;
 
     const replyHtml = msg.reply_to_id && (msg.reply_to_content || msg.reply_to_image)
-      ? `<div class="reply-quote">
-           <strong>${escapeHtml(msg.reply_to_username || 'User')}</strong>:
-           ${msg.reply_to_image ? '📷 Photo' : escapeHtml((msg.reply_to_content || '').substring(0, 80)) + ((msg.reply_to_content || '').length > 80 ? '…' : '')}
-         </div>`
+      ? (() => {
+          const replyText = msg.reply_to_content || '';
+          const truncated = replyText.substring(0, 80) + (replyText.length > 80 ? '…' : '');
+          return `<div class="reply-quote">
+             <strong>${escapeHtml(msg.reply_to_username || 'User')}</strong>:
+             ${msg.reply_to_image ? '📷 Photo' : escapeHtml(truncated)}
+           </div>`;
+        })()
       : '';
 
     const imageHtml = msg.image

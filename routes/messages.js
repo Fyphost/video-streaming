@@ -27,6 +27,9 @@ const msgImageUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
+const MAX_CAPTION_LENGTH = 500;
+const MAX_MSG_LENGTH = 2000;
+
 // Helper: full message SELECT
 const MSG_SELECT = `
   SELECT m.id, m.content, m.image, m.read, m.created_at,
@@ -158,7 +161,7 @@ router.post('/:userId/image', authenticateToken, (req, res) => {
 
       if (!req.file) return res.status(400).json({ error: 'Image file is required.' });
 
-      const caption = (req.body.content || '').trim().substring(0, 500);
+      const caption = (req.body.content || '').trim().substring(0, MAX_CAPTION_LENGTH);
       const { reply_to_id } = req.body;
 
       let replyToId = null;
@@ -195,8 +198,8 @@ router.post('/:userId', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Message content is required.' });
     }
 
-    if (content.length > 2000) {
-      return res.status(400).json({ error: 'Message must be under 2000 characters.' });
+    if (content.length > MAX_MSG_LENGTH) {
+      return res.status(400).json({ error: `Message must be under ${MAX_MSG_LENGTH} characters.` });
     }
 
     const receiver = db.get('SELECT id FROM users WHERE id = ?', [receiverId]);
