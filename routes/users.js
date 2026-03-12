@@ -27,56 +27,6 @@ const avatarUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
-// GET /api/users/:username - get user profile
-router.get('/:username', optionalAuth, (req, res) => {
-  try {
-    const user = db.get(
-      'SELECT id, username, email, avatar, bio, bluetick, created_at FROM users WHERE username = ?',
-      [req.params.username]
-    );
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const { follower_count } = db.get(
-      'SELECT COUNT(*) as follower_count FROM follows WHERE following_id = ?',
-      [user.id]
-    );
-    const { following_count } = db.get(
-      'SELECT COUNT(*) as following_count FROM follows WHERE follower_id = ?',
-      [user.id]
-    );
-
-    const videos = db.all(`
-      SELECT v.id, v.title, v.description, v.filename, v.thumbnail, v.views, v.created_at,
-             (SELECT COUNT(*) FROM likes WHERE video_id = v.id) as like_count
-      FROM videos v
-      WHERE v.user_id = ?
-      ORDER BY v.created_at DESC
-    `, [user.id]);
-
-    let is_following = false;
-    if (req.user && req.user.id !== user.id) {
-      const follow = db.get(
-        'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?',
-        [req.user.id, user.id]
-      );
-      is_following = !!follow;
-    }
-
-    return res.json({
-      ...user,
-      follower_count,
-      following_count,
-      videos,
-      is_following
-    });
-  } catch (err) {
-    console.error('Get user error:', err);
-    return res.status(500).json({ error: 'Server error.' });
-  }
-});
-
 // GET /api/users/me/profile - get current user profile
 router.get('/me/profile', authenticateToken, (req, res) => {
   try {
@@ -352,6 +302,56 @@ router.put('/admin/bluetick/:id', authenticateToken, (req, res) => {
     return res.json({ message: `Request ${newStatus}.` });
   } catch (err) {
     console.error('Admin bluetick action error:', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// GET /api/users/:username - get user profile (must be last to avoid shadowing named routes)
+router.get('/:username', optionalAuth, (req, res) => {
+  try {
+    const user = db.get(
+      'SELECT id, username, email, avatar, bio, bluetick, created_at FROM users WHERE username = ?',
+      [req.params.username]
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const { follower_count } = db.get(
+      'SELECT COUNT(*) as follower_count FROM follows WHERE following_id = ?',
+      [user.id]
+    );
+    const { following_count } = db.get(
+      'SELECT COUNT(*) as following_count FROM follows WHERE follower_id = ?',
+      [user.id]
+    );
+
+    const videos = db.all(`
+      SELECT v.id, v.vid_id, v.title, v.description, v.filename, v.thumbnail, v.category, v.views, v.created_at,
+             (SELECT COUNT(*) FROM likes WHERE video_id = v.id) as like_count
+      FROM videos v
+      WHERE v.user_id = ?
+      ORDER BY v.created_at DESC
+    `, [user.id]);
+
+    let is_following = false;
+    if (req.user && req.user.id !== user.id) {
+      const follow = db.get(
+        'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?',
+        [req.user.id, user.id]
+      );
+      is_following = !!follow;
+    }
+
+    return res.json({
+      ...user,
+      follower_count,
+      following_count,
+      videos,
+      is_following
+    });
+  } catch (err) {
+    console.error('Get user error:', err);
     return res.status(500).json({ error: 'Server error.' });
   }
 });

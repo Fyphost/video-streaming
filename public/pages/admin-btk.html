@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Bluetick Requests — StreamHub</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="admin-btk">
+
+  <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content" style="padding:24px">
+      <div style="max-width:900px;margin:0 auto">
+
+        <!-- Login panel -->
+        <div id="admin-login-panel">
+          <div class="card" style="max-width:420px;margin:60px auto;padding:32px">
+            <div style="text-align:center;margin-bottom:24px">
+              <i class="fa-solid fa-shield-halved" style="font-size:2.5rem;color:var(--primary)"></i>
+              <h2 style="margin-top:12px;font-size:1.4rem">Admin Access</h2>
+              <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">Enter admin credentials to continue</p>
+            </div>
+            <div class="form-group" style="margin-bottom:16px">
+              <label class="form-label" for="admin-username">Username</label>
+              <input type="text" id="admin-username" class="form-control" placeholder="admin" autocomplete="off">
+            </div>
+            <div class="form-group" style="margin-bottom:20px">
+              <label class="form-label" for="admin-password">Password</label>
+              <input type="password" id="admin-password" class="form-control" placeholder="••••••••" autocomplete="current-password"
+                     onkeydown="if(event.key==='Enter') adminLogin()">
+            </div>
+            <button class="btn btn-primary" style="width:100%" id="admin-login-btn" onclick="adminLogin()">
+              <i class="fa-solid fa-right-to-bracket"></i> Sign In
+            </button>
+            <div id="admin-login-error" style="display:none;color:var(--danger);font-size:0.85rem;margin-top:12px;text-align:center"></div>
+          </div>
+        </div>
+
+        <!-- Requests panel (shown after login) -->
+        <div id="admin-requests-panel" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+            <h1 style="font-size:1.5rem;font-weight:700"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Bluetick Verification Requests</h1>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="loadRequests()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+              <button class="btn btn-outline btn-sm" onclick="adminLogout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            </div>
+          </div>
+          <div id="requests-container">
+            <div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      buildNavbar('admin-btk');
+      buildSidebar('admin-btk');
+
+      // Check for existing admin session
+      const adminToken = sessionStorage.getItem('admin_btk_token');
+      if (adminToken) {
+        showRequestsPanel();
+        loadRequests();
+      }
+    });
+
+    function showRequestsPanel() {
+      document.getElementById('admin-login-panel').style.display = 'none';
+      document.getElementById('admin-requests-panel').style.display = 'block';
+    }
+
+    function showLoginPanel() {
+      document.getElementById('admin-login-panel').style.display = 'block';
+      document.getElementById('admin-requests-panel').style.display = 'none';
+    }
+
+    function adminLogout() {
+      sessionStorage.removeItem('admin_btk_token');
+      showLoginPanel();
+    }
+
+    async function adminLogin() {
+      const usernameInput = document.getElementById('admin-username');
+      const passwordInput = document.getElementById('admin-password');
+      const errEl = document.getElementById('admin-login-error');
+      const btn = document.getElementById('admin-login-btn');
+
+      const username = usernameInput ? usernameInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
+
+      if (!username || !password) {
+        errEl.textContent = 'Please enter username and password.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in…';
+      errEl.style.display = 'none';
+
+      try {
+        // Use the existing login endpoint — admin user is pre-created with email admin@streamhub.local
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: username === 'admin' ? 'admin@streamhub.local' : username, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Invalid credentials.');
+        if (!data.user || !data.user.is_admin) throw new Error('Admin access required.');
+
+        // Store admin session token
+        sessionStorage.setItem('admin_btk_token', data.token);
+        showRequestsPanel();
+        loadRequests();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';
+      }
+    }
+
+    function getAdminToken() {
+      return sessionStorage.getItem('admin_btk_token');
+    }
+
+    async function adminApiRequest(url, options = {}) {
+      const token = getAdminToken();
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(url, { ...options, headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    async function loadRequests() {
+      const container = document.getElementById('requests-container');
+      if (!container) return;
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>';
+
+      try {
+        const data = await adminApiRequest('/api/users/admin/bluetick');
+        renderRequests(data.requests || []);
+      } catch (err) {
+        if (err.message && (err.message.includes('Admin') || err.message.includes('token') || err.message.includes('expired'))) {
+          sessionStorage.removeItem('admin_btk_token');
+          showLoginPanel();
+          const errEl = document.getElementById('admin-login-error');
+          if (errEl) { errEl.textContent = 'Session expired. Please sign in again.'; errEl.style.display = 'block'; }
+        } else {
+          container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>${escapeHtml(err.message)}</h3></div>`;
+        }
+      }
+    }
+
+    function renderRequests(requests) {
+      const container = document.getElementById('requests-container');
+      if (!container) return;
+
+      if (!requests.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon"><i class="fa-solid fa-inbox"></i></div>
+            <h3>No bluetick requests</h3>
+            <p>No verification requests have been submitted yet.</p>
+          </div>`;
+        return;
+      }
+
+      const statusColors = { pending: '#f59e0b', approved: '#1e8e3e', rejected: '#d93025' };
+
+      container.innerHTML = '';
+
+      const pending = requests.filter(r => r.status === 'pending').length;
+      const approved = requests.filter(r => r.status === 'approved').length;
+      const rejected = requests.filter(r => r.status === 'rejected').length;
+
+      const statsRow = document.createElement('div');
+      statsRow.style.cssText = 'display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap';
+      statsRow.innerHTML = `
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#f59e0b">${pending}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Pending</div>
+        </div>
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#1e8e3e">${approved}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Approved</div>
+        </div>
+        <div class="card" style="padding:16px 24px;flex:1;min-width:120px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:#d93025">${rejected}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary)">Rejected</div>
+        </div>
+      `;
+      container.appendChild(statsRow);
+
+      requests.forEach(req => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.cssText = 'padding:20px;margin-bottom:16px';
+
+        const avatarHtml = req.avatar
+          ? `<img src="/uploads/${escapeHtml(req.avatar)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover" alt="${escapeHtml(req.username)}">`
+          : `<div style="width:48px;height:48px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem">${escapeHtml(req.username.charAt(0).toUpperCase())}</div>`;
+
+        const igLink = req.instagram_url
+          ? `<a href="${escapeHtml(req.instagram_url)}" target="_blank" rel="noopener noreferrer" style="color:#e1306c;font-size:0.85rem"><i class="fa-brands fa-instagram"></i> ${escapeHtml(req.instagram_url)}</a>`
+          : '<span style="font-size:0.85rem;color:var(--text-light)">No Instagram provided</span>';
+
+        const statusColor = statusColors[req.status] || '#5f6368';
+        const statusBadge = `<span style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:600;text-transform:uppercase">${escapeHtml(req.status)}</span>`;
+
+        card.innerHTML = `
+          <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+            <a href="/@${encodeURIComponent(req.username)}" target="_blank" style="flex-shrink:0">${avatarHtml}</a>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+                <a href="/@${encodeURIComponent(req.username)}" target="_blank" style="font-weight:700;font-size:1rem;color:var(--text-primary)">${escapeHtml(req.username)}</a>
+                ${req.bluetick === 2 ? '<i class="fa-solid fa-circle-check bluetick-icon" title="Already verified"></i>' : ''}
+                ${statusBadge}
+                <span style="font-size:0.8rem;color:var(--text-light)">${formatDate(req.created_at)}</span>
+              </div>
+              <div style="margin-bottom:8px">${igLink}</div>
+              ${req.reason ? `<div style="font-size:0.88rem;color:var(--text-secondary);background:var(--bg);border-radius:8px;padding:10px 14px;line-height:1.5;word-break:break-word">${escapeHtml(req.reason)}</div>` : ''}
+            </div>
+            ${req.status === 'pending' ? `
+            <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+              <button class="btn btn-primary btn-sm" onclick="handleRequest(${req.id}, 'approve')"><i class="fa-solid fa-check"></i> Approve</button>
+              <button class="btn btn-danger btn-sm" onclick="handleRequest(${req.id}, 'reject')"><i class="fa-solid fa-xmark"></i> Reject</button>
+            </div>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function handleRequest(id, action) {
+      const label = action === 'approve' ? 'approve' : 'reject';
+      if (!confirm(`Are you sure you want to ${label} this request?`)) return;
+
+      try {
+        const data = await adminApiRequest(`/api/users/admin/bluetick/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ action })
+        });
+        showToast(data.message, 'success');
+        loadRequests();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

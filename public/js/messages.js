@@ -195,6 +195,10 @@ async function openConversation(userId, username, avatar, existingMessages = nul
     <div class="chat-messages" id="chat-messages"></div>
     <div id="reply-preview" class="reply-preview" style="display:none"></div>
     <div class="chat-input-area">
+      <label for="msg-photo-input" class="msg-photo-btn" title="Send photo">
+        <i class="fa-solid fa-image"></i>
+        <input type="file" id="msg-photo-input" accept="image/*" style="display:none">
+      </label>
       <textarea id="msg-input" placeholder="Type a message…" rows="1" onkeydown="handleMsgKeydown(event, ${userId})"></textarea>
       <button class="btn btn-primary" onclick="sendMessage(${userId})"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
@@ -202,6 +206,16 @@ async function openConversation(userId, username, avatar, existingMessages = nul
 
   // Show chat panel (handles mobile transition)
   showChatPanel();
+
+  // Photo input handler
+  const photoInput = document.getElementById('msg-photo-input');
+  if (photoInput) {
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files[0];
+      if (file) sendPhotoMessage(userId, file);
+      photoInput.value = '';
+    });
+  }
 
   const messagesEl = document.getElementById('chat-messages');
 
@@ -256,14 +270,28 @@ function renderMessages(container, messages, userId) {
     div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
     div.dataset.msgId = msg.id;
 
-    const replyHtml = msg.reply_to_id && msg.reply_to_content
-      ? `<div class="reply-quote"><strong>${escapeHtml(msg.reply_to_username || 'User')}</strong>: ${escapeHtml(msg.reply_to_content.substring(0, 80))}${msg.reply_to_content.length > 80 ? '…' : ''}</div>`
+    const replyHtml = msg.reply_to_id && (msg.reply_to_content || msg.reply_to_image)
+      ? (() => {
+          const replyText = msg.reply_to_content || '';
+          const truncated = replyText.substring(0, 80) + (replyText.length > 80 ? '…' : '');
+          return `<div class="reply-quote">
+             <strong>${escapeHtml(msg.reply_to_username || 'User')}</strong>:
+             ${msg.reply_to_image ? '📷 Photo' : escapeHtml(truncated)}
+           </div>`;
+        })()
       : '';
+
+    const imageHtml = msg.image
+      ? `<div class="chat-msg-image-wrap"><img src="/uploads/${escapeHtml(msg.image)}" class="chat-msg-image" alt="Photo" loading="lazy" onclick="openImageFull('/uploads/${escapeHtml(msg.image)}')" oncontextmenu="return false" draggable="false"></div>`
+      : '';
+
+    const textHtml = msg.content ? `<span class="chat-msg-text">${escapeHtml(msg.content)}</span>` : '';
 
     div.innerHTML = `
       <div class="chat-message-bubble">
         ${replyHtml}
-        ${escapeHtml(msg.content)}
+        ${imageHtml}
+        ${textHtml}
         <div class="chat-message-actions">
           <button class="msg-reply-btn" title="Reply"><i class="fa-solid fa-reply"></i></button>
         </div>
@@ -274,7 +302,8 @@ function renderMessages(container, messages, userId) {
     const replyBtn = div.querySelector('.msg-reply-btn');
     if (replyBtn) {
       replyBtn.addEventListener('click', () => {
-        setReplyTo(msg.id, msg.content.substring(0, 60), msg.sender_username || 'User');
+        const preview = msg.image ? '📷 Photo' : (msg.content || '').substring(0, 60);
+        setReplyTo(msg.id, preview, msg.sender_username || 'User', !!msg.image);
       });
     }
 
@@ -287,14 +316,14 @@ function renderMessages(container, messages, userId) {
   }
 }
 
-function setReplyTo(msgId, content, username) {
-  replyToMsg = { id: msgId, content, username };
+function setReplyTo(msgId, content, username, isImage = false) {
+  replyToMsg = { id: msgId, content, username, isImage };
   const preview = document.getElementById('reply-preview');
   if (preview) {
     preview.style.display = 'flex';
     preview.innerHTML = `
       <div style="flex:1;font-size:0.82rem;color:var(--text-secondary)">
-        Replying to <strong>${escapeHtml(username)}</strong>: ${escapeHtml(content)}…
+        Replying to <strong>${escapeHtml(username)}</strong>: ${isImage ? '📷 Photo' : escapeHtml(content)}…
       </div>
       <button onclick="clearReply()" style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:1rem">&times;</button>
     `;
@@ -369,4 +398,49 @@ async function startNewConversation() {
   } catch (err) {
     showToast('User not found: ' + username, 'error');
   }
+}
+
+async function sendPhotoMessage(userId, file) {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const captionInput = document.getElementById('msg-input');
+  const caption = captionInput ? captionInput.value.trim() : '';
+  if (caption) {
+    formData.append('content', caption);
+    if (captionInput) captionInput.value = '';
+  }
+  if (replyToMsg) {
+    formData.append('reply_to_id', replyToMsg.id);
+    clearReply();
+  }
+
+  const token = getToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  try {
+    const response = await fetch(`/api/messages/${userId}/image`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Upload failed');
+    await fetchMessages(userId);
+    loadConversations();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openImageFull(src) {
+  let overlay = document.getElementById('img-full-overlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'img-full-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  overlay.innerHTML = `<img src="${escapeHtml(src)}" style="max-width:95vw;max-height:90vh;border-radius:8px;object-fit:contain" oncontextmenu="return false" draggable="false">`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
 }

@@ -1901,12 +1901,20 @@ img {
 .share-btn.telegram { background: #0088CC; }
 
 /* ============================================================
-   BLUETICK / VERIFIED BADGE
+   BLUETICK / VERIFIED BADGE  (Instagram-style blue check)
    ============================================================ */
 .bluetick-icon {
-  color: #1a73e8;
-  font-size: 0.9em;
+  color: #0095f6;
+  font-size: 0.95em;
   vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Larger version used in profile headers */
+.profile-info .bluetick-icon {
+  font-size: 1.05em;
 }
 
 /* ============================================================
@@ -2021,6 +2029,54 @@ img {
 
 .chat-message-bubble {
   position: relative;
+}
+
+/* Photo send button */
+.msg-photo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 1rem;
+  transition: background var(--transition);
+}
+
+.msg-photo-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Photo message image */
+.chat-msg-image-wrap {
+  margin-bottom: 4px;
+}
+
+.chat-msg-image {
+  max-width: 220px;
+  max-height: 260px;
+  border-radius: 12px;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
+}
+
+.chat-message.sent .chat-msg-image {
+  border-radius: 12px 4px 12px 12px;
+}
+
+.chat-message.received .chat-msg-image {
+  border-radius: 4px 12px 12px 12px;
+}
+
+.chat-msg-text {
+  display: block;
+  word-break: break-word;
 }
 
 /* ============================================================
