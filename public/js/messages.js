@@ -134,8 +134,11 @@ async function searchConversations(query) {
         nameEl.textContent = u.username;
 
         const bluetickEl = u.bluetick === 2 ? (() => {
-          const ic = document.createElement('i');
-          ic.className = 'fa-solid fa-circle-check bluetick-icon';
+          const ic = document.createElement('img');
+          ic.src = '/img/bluetick.svg';
+          ic.className = 'bluetick-icon';
+          ic.alt = '✓';
+          ic.title = 'Verified';
           ic.style.marginLeft = '4px';
           return ic;
         })() : null;
@@ -274,9 +277,13 @@ function renderMessages(container, messages, userId) {
       ? (() => {
           const replyText = msg.reply_to_content || '';
           const truncated = replyText.substring(0, 80) + (replyText.length > 80 ? '…' : '');
+          const replyImgHtml = msg.reply_to_image
+            ? `<img src="/uploads/${escapeHtml(msg.reply_to_image)}" class="reply-quote-thumb" alt="Photo" data-fullsrc="/uploads/${escapeHtml(msg.reply_to_image)}" oncontextmenu="return false" draggable="false">`
+            : '';
           return `<div class="reply-quote">
              <strong>${escapeHtml(msg.reply_to_username || 'User')}</strong>:
-             ${msg.reply_to_image ? '📷 Photo' : escapeHtml(truncated)}
+             ${replyImgHtml}
+             ${!msg.reply_to_image ? escapeHtml(truncated) : ''}
            </div>`;
         })()
       : '';
@@ -302,8 +309,19 @@ function renderMessages(container, messages, userId) {
     const replyBtn = div.querySelector('.msg-reply-btn');
     if (replyBtn) {
       replyBtn.addEventListener('click', () => {
-        const preview = msg.image ? '📷 Photo' : (msg.content || '').substring(0, 60);
-        setReplyTo(msg.id, preview, msg.sender_username || 'User', !!msg.image);
+        const imageUrl = msg.image ? `/uploads/${msg.image}` : null;
+        const previewText = msg.image ? '📷 Photo' : (msg.content || '').substring(0, 60);
+        setReplyTo(msg.id, previewText, msg.sender_username || 'User', !!msg.image, imageUrl);
+      });
+    }
+
+    // Attach click listener to reply-quote thumbnail
+    const replyThumb = div.querySelector('.reply-quote-thumb');
+    if (replyThumb) {
+      replyThumb.style.cursor = 'zoom-in';
+      replyThumb.addEventListener('click', () => {
+        const src = replyThumb.dataset.fullsrc;
+        if (src) openImageFull(src);
       });
     }
 
@@ -316,16 +334,24 @@ function renderMessages(container, messages, userId) {
   }
 }
 
-function setReplyTo(msgId, content, username, isImage = false) {
-  replyToMsg = { id: msgId, content, username, isImage };
+function setReplyTo(msgId, content, username, isImage = false, imageUrl = null) {
+  // Only accept safe uploads paths
+  const safeImageUrl = imageUrl && /^\/uploads\/[\w\-\.]+$/.test(imageUrl) ? imageUrl : null;
+  replyToMsg = { id: msgId, content, username, isImage, imageUrl: safeImageUrl };
   const preview = document.getElementById('reply-preview');
   if (preview) {
     preview.style.display = 'flex';
+    const imgHtml = isImage && safeImageUrl
+      ? `<img src="${escapeHtml(safeImageUrl)}" style="height:40px;width:40px;object-fit:cover;border-radius:4px;flex-shrink:0" alt="Photo" oncontextmenu="return false" draggable="false">`
+      : '';
     preview.innerHTML = `
-      <div style="flex:1;font-size:0.82rem;color:var(--text-secondary)">
-        Replying to <strong>${escapeHtml(username)}</strong>: ${isImage ? '📷 Photo' : escapeHtml(content)}…
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        ${imgHtml}
+        <div style="flex:1;font-size:0.82rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          Replying to <strong>${escapeHtml(username)}</strong>${!isImage ? ': ' + escapeHtml(content) : ''}
+        </div>
       </div>
-      <button onclick="clearReply()" style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:1rem">&times;</button>
+      <button onclick="clearReply()" style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:1rem;flex-shrink:0">&times;</button>
     `;
   }
   const input = document.getElementById('msg-input');

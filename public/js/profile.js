@@ -51,7 +51,7 @@ async function loadProfile(username) {
       ? `<img src="/uploads/${data.avatar}" class="profile-avatar-large" alt="${escapeHtml(data.username)}">`
       : `<div class="profile-avatar-large">${avatarInitials(data.username)}</div>`;
 
-    const bluetick = data.bluetick === 2 ? ' <i class="fa-solid fa-circle-check bluetick-icon" title="Verified"></i>' : '';
+    const bluetick = data.bluetick === 2 ? ' <img src="/img/bluetick.svg" class="bluetick-icon" alt="✓" title="Verified">' : '';
 
     headerEl.innerHTML = `
       ${avatarHtml}
@@ -324,7 +324,7 @@ async function applyBluetick() {
   modal.innerHTML = `
     <div class="card" style="width:100%;max-width:480px;padding:24px;position:relative">
       <button onclick="document.getElementById('bluetick-modal').remove()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-secondary)">&times;</button>
-      <h3 style="margin-bottom:4px"><i class="fa-solid fa-circle-check" style="color:#1a73e8"></i> Apply for Verified Badge</h3>
+      <h3 style="margin-bottom:4px"><img src="/img/bluetick.svg" class="bluetick-icon" alt="✓" style="width:1.1em;height:1.1em;vertical-align:middle"> Apply for Verified Badge</h3>
       <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">Tell us why you deserve a verified badge. Adding your Instagram profile helps verify your identity.</p>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label">Instagram Profile URL (optional)</label>
