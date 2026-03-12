@@ -40,10 +40,12 @@ function buildCommentEl(comment, videoId) {
     ? `<img src="/uploads/${comment.avatar}" class="comment-avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="${escapeHtml(comment.username)}">`
     : `<div class="comment-avatar">${avatarInitials(comment.username)}</div>`;
 
+  const bluetick = comment.bluetick === 2 ? ` <img src="/img/bluetick.svg" class="bluetick-icon" alt="✓" title="Verified">` : '';
+
   div.innerHTML = `
     ${avatar}
     <div class="comment-body">
-      <span class="comment-username">${escapeHtml(comment.username)}</span>
+      <span class="comment-username">${escapeHtml(comment.username)}${bluetick}</span>
       <span class="comment-time">${formatDate(comment.created_at)}</span>
       <div class="comment-text">${escapeHtml(comment.content)}</div>
       ${canDelete ? `<button class="comment-delete-btn" onclick="deleteComment(${comment.id}, '${videoId}')">Delete</button>` : ''}

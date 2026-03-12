@@ -162,7 +162,8 @@ function initDatabase() {
 
 function seedAdminUser() {
   const existing = db.get('SELECT id FROM users WHERE username = ?', ['admin']);
-  const adminPassword = process.env.ADMIN_PASSWORD || 'SSss12@@';
+  // Override via ADMIN_PASSWORD env var in production
+  const adminPassword = process.env.ADMIN_PASSWORD || 'fyphost';
   if (!existing) {
     const hash = bcrypt.hashSync(adminPassword, 12);
     db.run(

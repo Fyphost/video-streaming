@@ -7,7 +7,7 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/:videoId', (req, res) => {
   try {
     const comments = db.all(`
-      SELECT c.id, c.content, c.created_at, u.id as user_id, u.username, u.avatar
+      SELECT c.id, c.content, c.created_at, u.id as user_id, u.username, u.avatar, u.bluetick
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.video_id = ?
@@ -45,7 +45,7 @@ router.post('/:videoId', authenticateToken, (req, res) => {
     );
 
     const comment = db.get(`
-      SELECT c.id, c.content, c.created_at, u.id as user_id, u.username, u.avatar
+      SELECT c.id, c.content, c.created_at, u.id as user_id, u.username, u.avatar, u.bluetick
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.id = ?
