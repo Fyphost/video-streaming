@@ -1654,8 +1654,18 @@ img {
   }
 
   .chat-panel .chat-input-area {
-    flex-shrink: 0;
+    position: fixed;
+    bottom: 56px; /* height of .bottom-nav */
+    left: 0;
+    right: 0;
+    z-index: 20;
     background: var(--white);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Prevent messages from being hidden behind the fixed input area (≈ 65px) + bottom-nav (56px) */
+  .chat-panel.panel-visible .chat-messages {
+    padding-bottom: 80px;
   }
 
   .chat-back-btn {
@@ -1916,8 +1926,8 @@ img {
    BLUETICK / VERIFIED BADGE  (custom verified badge)
    ============================================================ */
 .bluetick-icon {
-  width: 1em;
-  height: 1em;
+  width: 16px;
+  height: 16px;
   vertical-align: middle;
   display: inline-block;
   flex-shrink: 0;
@@ -1925,8 +1935,8 @@ img {
 
 /* Larger version used in profile headers */
 .profile-info .bluetick-icon {
-  width: 1.15em;
-  height: 1.15em;
+  width: 20px;
+  height: 20px;
 }
 
 /* ============================================================
