@@ -354,7 +354,7 @@ function renderVideoPlayer(video) {
     ? `<img src="/uploads/${video.avatar}" alt="${escapeHtml(video.username)}" class="uploader-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover">`
     : `<div class="uploader-avatar" style="background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;width:48px;height:48px;border-radius:50%">${avatarInitials(video.username)}</div>`;
 
-  const bluetick = video.bluetick === 2 ? ' <i class="fa-solid fa-circle-check bluetick-icon" title="Verified"></i>' : '';
+  const bluetick = video.bluetick === 2 ? ' <img src="/img/bluetick.svg" class="bluetick-icon" alt="✓" title="Verified">' : '';
   const watchUrl = video.vid_id ? `${window.location.origin}/watch/${video.vid_id}` : `${window.location.origin}/watch?id=${video.id}`;
   const categoryTag = video.category ? `<span class="category-tag" style="margin-left:8px">${escapeHtml(video.category)}</span>` : '';
 
@@ -421,7 +421,6 @@ function renderVideoPlayer(video) {
             <i class="fa-solid fa-heart"></i> <span id="like-count">${video.like_count || 0}</span>
           </button>
           <button class="btn btn-outline btn-sm" id="share-video-btn"><i class="fa-solid fa-share-nodes"></i> Share</button>
-          ${user ? `<button class="btn btn-outline btn-sm" onclick="openAddToPlaylist(${video.id})"><i class="fa-solid fa-list-ul"></i> Playlist</button>` : ''}
           ${isOwner ? `
             <button class="btn btn-outline btn-sm" onclick="openChangeThumbnail(${video.id})"><i class="fa-solid fa-image"></i> Thumbnail</button>
             <button class="btn btn-danger btn-sm" onclick="deleteVideo(${video.id})"><i class="fa-solid fa-trash"></i> Delete</button>
