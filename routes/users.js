@@ -306,6 +306,48 @@ router.put('/admin/bluetick/:id', authenticateToken, (req, res) => {
   }
 });
 
+// GET /api/users/:username/followers - get followers list
+router.get('/:username/followers', optionalAuth, (req, res) => {
+  try {
+    const user = db.get('SELECT id FROM users WHERE username = ?', [req.params.username]);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const followers = db.all(`
+      SELECT u.id, u.username, u.avatar, u.bluetick
+      FROM follows f
+      JOIN users u ON f.follower_id = u.id
+      WHERE f.following_id = ?
+      ORDER BY f.created_at DESC
+    `, [user.id]);
+
+    return res.json({ users: followers });
+  } catch (err) {
+    console.error('Followers error:', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// GET /api/users/:username/following - get following list
+router.get('/:username/following', optionalAuth, (req, res) => {
+  try {
+    const user = db.get('SELECT id FROM users WHERE username = ?', [req.params.username]);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const following = db.all(`
+      SELECT u.id, u.username, u.avatar, u.bluetick
+      FROM follows f
+      JOIN users u ON f.following_id = u.id
+      WHERE f.follower_id = ?
+      ORDER BY f.created_at DESC
+    `, [user.id]);
+
+    return res.json({ users: following });
+  } catch (err) {
+    console.error('Following error:', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
 // GET /api/users/:username - get user profile (must be last to avoid shadowing named routes)
 router.get('/:username', optionalAuth, (req, res) => {
   try {

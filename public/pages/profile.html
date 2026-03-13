@@ -32,11 +32,13 @@
       <div class="tabs" id="profile-tabs" style="display:none">
         <button class="tab-btn active" onclick="switchTab('videos')"><i class="fa-solid fa-video"></i> Videos</button>
         <button class="tab-btn" onclick="switchTab('liked')"><i class="fa-solid fa-heart"></i> Liked</button>
+        <button class="tab-btn" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i> History</button>
       </div>
 
       <!-- Videos Grid -->
       <div id="profile-videos"></div>
       <div id="profile-liked" style="display:none"></div>
+      <div id="profile-history" style="display:none"></div>
     </main>
   </div>
 
@@ -89,15 +91,27 @@
   <script>
     function switchTab(tab) {
       const btns = document.querySelectorAll('#profile-tabs .tab-btn');
-      btns.forEach((btn, i) => btn.classList.toggle('active', (i === 0 && tab === 'videos') || (i === 1 && tab === 'liked')));
+      btns.forEach((btn, i) => {
+        btn.classList.toggle('active',
+          (i === 0 && tab === 'videos') ||
+          (i === 1 && tab === 'liked') ||
+          (i === 2 && tab === 'history')
+        );
+      });
 
       document.getElementById('profile-videos').style.display = tab === 'videos' ? 'block' : 'none';
       const likedEl = document.getElementById('profile-liked');
       likedEl.style.display = tab === 'liked' ? 'block' : 'none';
+      const historyEl = document.getElementById('profile-history');
+      historyEl.style.display = tab === 'history' ? 'block' : 'none';
 
       if (tab === 'liked' && !likedEl.dataset.loaded) {
         likedEl.dataset.loaded = '1';
         loadLikedVideos(likedEl);
+      }
+      if (tab === 'history' && !historyEl.dataset.loaded) {
+        historyEl.dataset.loaded = '1';
+        loadHistoryVideos(historyEl);
       }
     }
 
@@ -118,6 +132,35 @@
         container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>${escapeHtml(err.message)}</h3></div>`;
       }
     }
+
+    async function loadHistoryVideos(container) {
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>';
+      try {
+        const data = await apiRequest('/api/users/me/history');
+        container.innerHTML = '';
+        if (!data.videos || data.videos.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="icon"><i class="fa-solid fa-clock-rotate-left"></i></div><h3>No watch history yet</h3></div>';
+          return;
+        }
+        const grid = document.createElement('div');
+        grid.className = 'video-grid';
+        data.videos.forEach(v => grid.appendChild(buildVideoCard(v)));
+        container.appendChild(grid);
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>${escapeHtml(err.message)}</h3></div>`;
+      }
+    }
   </script>
+
+  <!-- Followers / Following Modal -->
+  <div id="follow-list-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;padding:16px" onclick="closeFollowListModal(event)">
+    <div class="card" style="width:100%;max-width:420px;padding:0;overflow:hidden;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
+        <h3 id="follow-list-title" style="margin:0;font-size:1.1rem"></h3>
+        <button onclick="document.getElementById('follow-list-modal').style.display='none'" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-secondary);line-height:1">&times;</button>
+      </div>
+      <div id="follow-list-body" style="max-height:60vh;overflow-y:auto;padding:8px 0"></div>
+    </div>
+  </div>
 </body>
 </html>
