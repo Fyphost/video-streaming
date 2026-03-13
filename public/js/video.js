@@ -431,7 +431,7 @@ function renderVideoPlayer(video) {
         ${uploaderAvatar}
         <div class="uploader-details">
           <div class="name"><a href="/@${encodeURIComponent(video.username)}">${escapeHtml(video.username)}${bluetick}</a></div>
-          <div class="follower-count" id="follower-count">Loading…</div>
+          <div class="follower-count stat-clickable" id="follower-count" style="cursor:pointer" title="View followers">Loading…</div>
         </div>
         ${user && user.id !== video.user_id ? `
           <button class="btn btn-outline" id="follow-btn" onclick="toggleFollow(${video.user_id})">Follow</button>
@@ -479,7 +479,10 @@ async function loadUploaderInfo(userId, username) {
   try {
     const data = await apiRequest(`/api/users/${username}`);
     const fcEl = document.getElementById('follower-count');
-    if (fcEl) fcEl.textContent = `${formatViews(data.follower_count)} followers`;
+    if (fcEl) {
+      fcEl.textContent = `${formatViews(data.follower_count)} followers`;
+      fcEl.onclick = () => showFollowList(username, 'followers');
+    }
 
     const followBtn = document.getElementById('follow-btn');
     if (followBtn && data.is_following) {

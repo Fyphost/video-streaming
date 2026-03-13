@@ -448,3 +448,55 @@ async function refreshUserProfile() {
     setUser(data);
   } catch {}
 }
+
+// ── Followers / Following modal (shared across pages) ─────────
+async function showFollowList(username, type) {
+  const modal = document.getElementById('follow-list-modal');
+  const titleEl = document.getElementById('follow-list-title');
+  const bodyEl = document.getElementById('follow-list-body');
+  if (!modal || !titleEl || !bodyEl) return;
+
+  titleEl.textContent = type === 'followers' ? 'Followers' : 'Following';
+  bodyEl.innerHTML = '<div class="loading-spinner" style="padding:24px 0"><div class="spinner"></div></div>';
+  modal.style.display = 'flex';
+
+  try {
+    const data = await apiRequest(`/api/users/${encodeURIComponent(username)}/${type}`);
+    bodyEl.innerHTML = '';
+    if (!data.users || data.users.length === 0) {
+      bodyEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-secondary)">No ${type} yet.</div>`;
+      return;
+    }
+    data.users.forEach(u => {
+      const item = document.createElement('a');
+      item.href = `/@${encodeURIComponent(u.username)}`;
+      item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 20px;text-decoration:none;color:inherit;transition:background 0.15s';
+      item.onmouseenter = () => { item.style.background = 'var(--hover-bg, rgba(0,0,0,0.05))'; };
+      item.onmouseleave = () => { item.style.background = ''; };
+
+      const avatarEl = createAvatarEl(u, 40);
+      const nameWrap = document.createElement('div');
+      nameWrap.style.cssText = 'display:flex;align-items:center;gap:4px;font-weight:500';
+      nameWrap.textContent = u.username;
+      if (u.bluetick === 2) {
+        const tick = document.createElement('img');
+        tick.src = '/img/bluetick.svg';
+        tick.className = 'bluetick-icon';
+        tick.alt = '✓';
+        tick.title = 'Verified';
+        nameWrap.appendChild(tick);
+      }
+
+      item.appendChild(avatarEl);
+      item.appendChild(nameWrap);
+      bodyEl.appendChild(item);
+    });
+  } catch (err) {
+    bodyEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeFollowListModal(event) {
+  const modal = document.getElementById('follow-list-modal');
+  if (modal && event.target === modal) modal.style.display = 'none';
+}
