@@ -187,7 +187,6 @@ function buildVideoCard(video) {
     : `<span class="avatar-placeholder">${avatarInitials(video.username)}</span>`;
 
   const profileUrl = video.username ? `/@${encodeURIComponent(video.username)}` : '#';
-  const bluetick = video.bluetick === 2 ? ' <img src="/img/bluetick.svg" class="bluetick-icon" alt="✓" title="Verified">' : '';
   const categoryTag = video.category ? `<span class="category-tag">${escapeHtml(video.category)}</span>` : '';
 
   card.innerHTML = `
@@ -200,7 +199,7 @@ function buildVideoCard(video) {
       <div class="video-meta">
         <a class="uploader" href="${profileUrl}" onclick="event.stopPropagation()">
           ${uploaderAvatar}
-          ${escapeHtml(video.username)}${bluetick}
+          ${escapeHtml(video.username)}
         </a>
         <span>•</span>
         <span>${formatViews(video.views)} views</span>
